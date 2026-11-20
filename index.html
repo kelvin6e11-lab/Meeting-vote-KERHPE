@@ -1,0 +1,2511 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>會議優先排序制投票表決系統（通用版）</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f8fafc;
+    --surface-2: #f1f5f9;
+    --navy: #0f172a;
+    --navy-2: #1e3a5f;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --green: #15803d;
+    --green-bg: #dcfce7;
+    --red: #b91c1c;
+    --red-bg: #fee2e2;
+    --amber: #b45309;
+    --amber-bg: #fef3c7;
+    --purple: #6d28d9;
+    --purple-bg: #f3e8ff;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text: #0f172a;
+    --muted: #64748b;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  /* Header */
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 24px;
+    border-bottom: 3px solid var(--navy-2);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+  .brand p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #cbd5e1;
+  }
+  .header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 7px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--surface-2); border-color: #94a3b8; }
+  .btn:disabled { opacity: 0.48; cursor: not-allowed; }
+  .btn-primary { background: var(--navy-2); color: #fff; border-color: var(--navy-2); }
+  .btn-primary:hover:not(:disabled) { background: #162c49; border-color: #162c49; }
+  .btn-green { background: var(--green); color: #fff; border-color: var(--green); }
+  .btn-green:hover:not(:disabled) { background: #166534; }
+  .btn-amber { background: var(--amber); color: #fff; border-color: var(--amber); }
+  .btn-amber:hover:not(:disabled) { background: #92400e; }
+  .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-red:hover:not(:disabled) { background: #991b1b; }
+  .btn-ghost-dark { background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.25); }
+  .btn-ghost-dark:hover:not(:disabled) { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.45); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* Stepper */
+  .stepper-bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+  }
+  .stepper {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .step-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    background: #fff;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .step-tab .num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+  .step-tab.active {
+    background: var(--navy-2);
+    color: #fff;
+    border-color: var(--navy-2);
+  }
+  .step-tab.active .num { background: #fff; color: var(--navy-2); }
+  .step-tab.alert {
+    background: var(--amber-bg);
+    color: var(--amber);
+    border-color: #f59e0b;
+  }
+  .step-tab.done .num { background: var(--green); color: #fff; }
+
+  /* Main layout */
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 24px 60px;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .card-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .card-sub {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin: 2px 0 0;
+  }
+
+  /* Form controls */
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+  label.field-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 5px;
+  }
+  input[type="text"], input[type="number"], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 13.5px;
+    font-family: inherit;
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--text);
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+  }
+  textarea { resize: vertical; }
+  .help-text { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
+
+  /* Preset pills */
+  .preset-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .preset-chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    border: 1px solid #bfdbfe;
+    background: var(--accent-soft);
+    color: #1d4ed8;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-chip:hover { background: #dbeafe; }
+
+  /* KPI Metrics */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .kpi .k-label { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+  .kpi .k-val { font-size: 19px; font-weight: 700; color: var(--navy); margin-top: 2px; }
+  .kpi.k-green { background: var(--green-bg); border-color: #86efac; }
+  .kpi.k-green .k-val { color: var(--green); }
+  .kpi.k-amber { background: var(--amber-bg); border-color: #fcd34d; }
+  .kpi.k-amber .k-val { color: var(--amber); }
+
+  /* Tables */
+  .table-wrap {
+    overflow: auto;
+    max-height: 520px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+    background: #fff;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 6px 8px;
+    text-align: center;
+    white-space: nowrap;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--navy-2);
+    color: #fff;
+    font-weight: 600;
+    z-index: 3;
+  }
+  tbody th, td.sticky-col {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    font-weight: 600;
+    text-align: left;
+    z-index: 2;
+    min-width: 110px;
+  }
+  thead th.sticky-col { left: 0; z-index: 4; text-align: left; }
+  .rank-input {
+    width: 54px;
+    padding: 4px 5px;
+    text-align: center;
+    font-size: 13px;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+  }
+  .rank-input.invalid {
+    border-color: var(--red);
+    background: var(--red-bg);
+    color: var(--red);
+    font-weight: 700;
+  }
+  td.cell-vote {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: 700;
+  }
+  tr.row-promoted td { background: #f0fdf4; }
+  tr.row-promoted td.sticky-col { background: #dcfce7; color: var(--green); }
+  tr.row-winner td { background: #ecfdf5; }
+  tr.row-winner td.sticky-col { background: #bbf7d0; color: #14532d; }
+  tr.row-tie td { background: #fffbeb; }
+  tr.row-tie td.sticky-col { background: #fef3c7; color: var(--amber); }
+  tr.row-eliminated td { background: #fef2f2; color: #991b1b; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+  .badge-amber { background: var(--amber-bg); color: var(--amber); }
+  .badge-blue { background: var(--accent-soft); color: #1d4ed8; }
+  .badge-purple { background: var(--purple-bg); color: var(--purple); }
+
+  /* Counting split view */
+  .counting-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  @media (max-width: 1024px) {
+    .counting-grid { grid-template-columns: 1fr; }
+  }
+  .log-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .log-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+  }
+  .log-item:hover { border-color: #94a3b8; background: var(--surface); }
+  .log-item.active { border-color: var(--navy-2); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--navy-2); }
+  .log-item .li-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; }
+  .log-item .li-body { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Banner alerts */
+  .banner {
+    padding: 12px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+    font-size: 13.5px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .banner-info { background: var(--accent-soft); border-color: #bfdbfe; color: #1e3a8a; }
+  .banner-warn { background: var(--amber-bg); border-color: #fcd34d; color: #78350f; }
+  .banner-ok { background: var(--green-bg); border-color: #86efac; color: #14532d; }
+  .banner-err { background: var(--red-bg); border-color: #fca5a5; color: #7f1d1d; }
+
+  /* Timer */
+  .timer-box {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .timer-clock {
+    font-size: 36px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--navy);
+    letter-spacing: 1px;
+  }
+  .timer-clock.urgent { color: var(--red); }
+  .speaker-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .speaker-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    font-size: 12.5px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .speaker-chip.spoken { background: var(--green-bg); border-color: #86efac; color: var(--green); font-weight: 600; }
+
+  /* Chair vote selection */
+  .chair-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .chair-card {
+    border: 2px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 10px 16px;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .chair-card:hover { border-color: var(--navy-2); }
+  .chair-card.selected {
+    border-color: var(--purple);
+    background: var(--purple-bg);
+    color: var(--purple);
+  }
+
+  /* Minutes preview */
+  .minutes-box {
+    background: #fff;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 18px 22px;
+    white-space: pre-wrap;
+    font-size: 13.5px;
+    line-height: 1.75;
+    max-height: 520px;
+    overflow-y: auto;
+    color: var(--text);
+  }
+
+  /* Rules modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 760px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 26px;
+    box-shadow: 0 20px 45px rgba(15,23,42,0.22);
+  }
+  .modal h2 { margin: 0 0 12px; font-size: 18px; color: var(--navy); }
+  .modal ul { padding-left: 20px; margin: 8px 0 14px; }
+  .modal li { margin-bottom: 5px; font-size: 13.5px; }
+
+  .toast {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    background: var(--navy);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s;
+    pointer-events: none;
+    z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media print {
+    header, .stepper-bar, .no-print { display: none !important; }
+    main { padding: 0; max-width: 100%; }
+    .card { border: none; padding: 0; }
+    .minutes-box { max-height: none; border: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <h1>會議優先排序制投票表決系統（通用版）</h1>
+      <p>適用任意人數與選項數（如 100 選 2、100 選 40、30 選 10、30 選 20、30 選 2）｜完整支援選票順延、不足總數即時截選、同票機制與主席票裁決</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost-dark" onclick="openRulesModal()">議事規則說明</button>
+      <button class="btn btn-ghost-dark" onclick="resetAll()">重新開始</button>
+    </div>
+  </div>
+</header>
+
+<div class="stepper-bar">
+  <div class="stepper">
+    <button class="step-tab active" id="tab-setup" onclick="switchTab('setup')">
+      <span class="num">1</span> 基本設定與範本
+    </button>
+    <button class="step-tab" id="tab-input" onclick="switchTab('input')">
+      <span class="num">2</span> 優先排序錄入
+    </button>
+    <button class="step-tab" id="tab-count" onclick="switchTab('count')">
+      <span class="num">3</span> 計票與選票順延
+    </button>
+    <button class="step-tab" id="tab-tie" onclick="switchTab('tie')">
+      <span class="num">4</span> 同票機制處理
+    </button>
+    <button class="step-tab" id="tab-report" onclick="switchTab('report')">
+      <span class="num">5</span> 結果匯出與會議記錄
+    </button>
+  </div>
+</div>
+
+<main>
+  <!-- STEP 1: SETUP -->
+  <section class="panel active" id="panel-setup">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">快速載入內建範本或模擬測試</h2>
+          <p class="card-sub">內建真實 Demo 1（30 選 20）、Demo 2（30 選 2）數據，及 100 選 40／100 選 2／30 選 10 壓力測試範例</p>
+        </div>
+      </div>
+      <div class="preset-bar">
+        <button class="preset-chip" onclick="loadPreset('demo2')">Demo 2 真實數據（30 選 2，6 人）</button>
+        <button class="preset-chip" onclick="loadPreset('demo1')">Demo 1 真實數據（30 選 20，6 人）</button>
+        <button class="preset-chip" onclick="loadPreset('30to10')">測試範本：30 選 10（8 人）</button>
+        <button class="preset-chip" onclick="loadPreset('100to2')">測試範本：100 選 2（10 人）</button>
+        <button class="preset-chip" onclick="loadPreset('100to40')">測試範本：100 選 40（12 人）</button>
+        <button class="preset-chip" onclick="loadPreset('tieDemo')">同票機制示範（6 選 2，必觸發同票）</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">自訂會議與表決參數</h2>
+          <p class="card-sub">支援 2–50 位投票成員、2–200 個選項任意組合</p>
+        </div>
+        <button class="btn btn-primary" onclick="applySetupAndNext()">套用設定並前往錄入排序 →</button>
+      </div>
+
+      <div class="grid-3" style="margin-bottom: 14px;">
+        <div>
+          <label class="field-label" for="cfg-title">議案／投票主題名稱</label>
+          <input type="text" id="cfg-title" value="會議議題表決">
+        </div>
+        <div>
+          <label class="field-label" for="cfg-target">最終所需選出之選項總數（K）</label>
+          <input type="number" id="cfg-target" min="1" max="199" value="2" oninput="refreshRulePreview()">
+        </div>
+        <div>
+          <label class="field-label" for="cfg-official">表決性質（影響會議記錄草稿）</label>
+          <select id="cfg-official">
+            <option value="formal">正式投票（具決議效力）</option>
+            <option value="mock">模擬投票（不具實質效力，僅供流程驗證）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom: 14px;">
+        <div>
+          <label class="field-label" for="cfg-shortfall">若本輪 50% 晉級數少於目標總數（例：30 選 20）之處理方式</label>
+          <select id="cfg-shortfall" onchange="refreshRulePreview()">
+            <option value="cutoff">標準規則：即時依本輪得票高低，從當前選項中選出所需總數（邊界同票進入同票機制）</option>
+            <option value="continue">Demo 1 順延模式：即使已達 50%，仍繼續順延至達目標總數（超出名額則依票數高低截選）</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label" for="cfg-vote-calc">每輪 33% 獲配票數取整方式</label>
+          <select id="cfg-vote-calc" onchange="refreshRulePreview()">
+            <option value="round">四捨五入（round(N / 3)，最少 1 票）— 與 Demo 1/2 一致</option>
+            <option value="ceil">無條件進位（ceil(N × 33%)，最少 1 票）</option>
+            <option value="floor">無條件捨去（floor(N × 33%)，最少 1 票）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <label class="field-label" style="margin:0;" for="cfg-voters">投票成員名單（每行一位，或以逗號分隔）</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="number" id="gen-v-cnt" value="6" min="2" max="50" style="width:62px; padding:4px 6px; font-size:12px;">
+              <button class="btn btn-sm" onclick="quickGenerateVoters()">快速產生</button>
+            </div>
+          </div>
+          <textarea id="cfg-voters" rows="8" oninput="refreshRulePreview()">Elina
+Helen
+Kelvin
+Percy
+Rita
+Effie</textarea>
+          <div class="help-text" id="voters-count-hint">目前：6 位成員</div>
+        </div>
+
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <label class="field-label" style="margin:0;" for="cfg-options">初始選項清單（每行一項，或以逗號分隔）</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="number" id="gen-o-cnt" value="30" min="2" max="200" style="width:68px; padding:4px 6px; font-size:12px;">
+              <button class="btn btn-sm" onclick="quickGenerateOptions()">快速產生</button>
+            </div>
+          </div>
+          <textarea id="cfg-options" rows="8" oninput="refreshRulePreview()">選項 1
+選項 2
+選項 3
+選項 4
+選項 5
+選項 6</textarea>
+          <div class="help-text" id="options-count-hint">目前：6 個選項</div>
+        </div>
+      </div>
+
+      <div class="banner banner-info" style="margin-top:16px; margin-bottom:0;" id="setup-rule-preview"></div>
+    </div>
+  </section>
+
+  <!-- STEP 2: INPUT RANKINGS -->
+  <section class="panel" id="panel-input">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="input-round-title">第 1 輪 — 優先排序錄入</h2>
+          <p class="card-sub" id="input-round-sub">請為每位成員輸入 1 至 N 的不重複優先次序（1 為最優先），或直接匯入 Excel／貼上表格</p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <button class="btn btn-sm" onclick="downloadBlankTemplate()">下載本輪空白 Excel 範本</button>
+          <label class="btn btn-sm" style="margin:0;">
+            匯入 Excel / CSV
+            <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleExcelImport(event)">
+          </label>
+          <button class="btn btn-sm" onclick="togglePasteBox()">從 Excel 貼上</button>
+          <button class="btn btn-sm" id="btn-carry-prev" style="display:none;" onclick="carryOverPreviousRankings()">沿用上輪相對順序</button>
+          <button class="btn btn-sm" id="btn-demo2-round" style="display:none;" onclick="loadDemo2CurrentRound()">套用 Demo 2 本輪真實排序</button>
+          <button class="btn btn-sm" onclick="randomizeCurrentRankings()">隨機填入測試排序</button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="input-kpi"></div>
+
+      <div id="paste-box-wrap" style="display:none; margin-bottom:14px; background:var(--surface); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <label class="field-label">貼上從 Excel 複製的排序矩陣（支援含或不含標題列與選項欄，Tab 或逗號分隔）</label>
+        <textarea id="paste-textarea" rows="5" placeholder="直接 Ctrl+V 貼上 Excel 儲存格區域..."></textarea>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="applyPastedMatrix()">解析並填入表格</button>
+          <button class="btn btn-sm" onclick="togglePasteBox()">取消</button>
+        </div>
+      </div>
+
+      <div id="input-validation-banner"></div>
+
+      <div class="table-wrap">
+        <table id="ranking-table"></table>
+      </div>
+
+      <div style="margin-top:16px; display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px;">
+        <button class="btn" onclick="switchTab('setup')">← 返回基本設定</button>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;">
+          <button class="btn btn-primary" onclick="startRoundCounting(false)">開始本輪計票（逐步檢視） →</button>
+          <button class="btn btn-green" onclick="startRoundCounting(true)">一鍵完成本輪計票</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: COUNTING & ROLLOVER -->
+  <section class="panel" id="panel-count">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" id="count-title">計票與選票順延引擎</h2>
+          <p class="card-sub" id="count-sub">即時展示每位成員的 V 票分配、過半門檻判定與每次選票順延軌跡</p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;" id="count-controls">
+          <button class="btn btn-primary" id="btn-next-step" onclick="runNextSubstep()">執行下一步計票／順延</button>
+          <button class="btn btn-green" id="btn-finish-round" onclick="finishCurrentRound()">一鍵完成本輪</button>
+          <button class="btn" id="btn-auto-all" onclick="autoRunAllRounds()">一鍵自動跑完全程（沿用相對排序）</button>
+          <button class="btn btn-primary" id="btn-start-next-round" style="display:none;" onclick="prepareNextRoundInput()">進入下一輪重排投票 →</button>
+          <button class="btn btn-amber" id="btn-go-tie" style="display:none;" onclick="switchTab('tie')">前往同票機制處理 →</button>
+          <button class="btn btn-green" id="btn-go-report" style="display:none;" onclick="switchTab('report')">查看最終結果與會議記錄 →</button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="count-kpi"></div>
+      <div id="count-status-banner"></div>
+
+      <div class="counting-grid">
+        <div>
+          <div style="font-size:13px; font-weight:700; color:var(--navy); margin-bottom:8px;">計票與順延步驟日誌（點擊可回看該步矩陣）</div>
+          <div class="log-list" id="step-log-list"></div>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+            <div style="font-size:13px; font-weight:700; color:var(--navy);" id="matrix-view-heading">當前步驟選票矩陣</div>
+            <div id="matrix-view-badges" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+          </div>
+          <div class="table-wrap">
+            <table id="counting-matrix-table"></table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4: TIE-BREAKING MECHANISM -->
+  <section class="panel" id="panel-tie">
+    <div class="card" id="tie-empty-card">
+      <h2 class="card-title">目前無待處理之同票事件</h2>
+      <p class="card-sub">僅當出現影響最終結果之同票（例如最後入選與淘汰邊界同票，或最終輪最高票同票超出名額）時，系統才會自動暫停並啟動余穎浠動議之同票機制。</p>
+      <div style="margin-top:12px;">
+        <button class="btn" onclick="switchTab('count')">← 返回計票畫面</button>
+      </div>
+    </div>
+
+    <div id="tie-active-wrap" style="display:none;">
+      <div class="banner banner-warn" id="tie-context-banner"></div>
+
+      <!-- Phase 1: 2-minute speaker timer -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">步驟一：成員發表意見（每人限時 2 分鐘）</h2>
+            <p class="card-sub">依余穎浠動議，每位成員在為同票選項重排優先順序前，擁有 2 分鐘發表意見的權利</p>
+          </div>
+        </div>
+        <div class="timer-box">
+          <div>
+            <div style="font-size:12px; color:var(--muted); font-weight:600;" id="timer-speaker-label">目前計時對象：未指定（可點擊下方成員名稱）</div>
+            <div class="timer-clock" id="timer-display">02:00</div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="startTimer()">開始倒數</button>
+            <button class="btn" onclick="pauseTimer()">暫停</button>
+            <button class="btn" onclick="resetTimer()">重設 2:00</button>
+          </div>
+        </div>
+        <div style="font-size:12.5px; color:var(--muted);">點擊成員標記「已發言」並重設計時器：</div>
+        <div class="speaker-grid" id="tie-speakers"></div>
+      </div>
+
+      <!-- Phase 2: Re-rank & vote among tied options -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" id="tie-vote-title">步驟二：同票選項單獨優先排序投票</h2>
+            <p class="card-sub" id="tie-vote-sub">獲配同票選項數 33% 票數（最少 1 票，每項上限 1 票），由最高票數直接勝出</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-sm" onclick="randomizeTieRankings()">隨機填入測試排序</button>
+            <button class="btn btn-primary btn-sm" onclick="evaluateTieVote()">計算同票投票結果</button>
+          </div>
+        </div>
+        <div id="tie-validation-banner"></div>
+        <div class="table-wrap">
+          <table id="tie-ranking-table"></table>
+        </div>
+        <div id="tie-result-area" style="margin-top:14px;"></div>
+      </div>
+
+      <!-- Phase 3: Chair casting vote (if still tied) -->
+      <div class="card" id="tie-chair-card" style="display:none; border-color:#c4b5fd; background:#faf5ff;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" style="color:var(--purple);">步驟三：會議主席動用主席票裁決</h2>
+            <p class="card-sub" id="chair-sub">經同票重投後仍出現重複同票，請會議主席點選欲裁決勝出之選項</p>
+          </div>
+        </div>
+        <div class="chair-options" id="chair-options-list"></div>
+        <button class="btn btn-primary" style="background:var(--purple); border-color:var(--purple);" onclick="confirmChairDecision()">確認主席票裁決並完成本階段 →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 5: REPORT & EXPORT -->
+  <section class="panel" id="panel-report">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">最終表決結果總覽</h2>
+          <p class="card-sub" id="report-sub">完整彙整勝出名單、各輪篩選歷程與同票處理紀錄</p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px;" class="no-print">
+          <button class="btn btn-green" onclick="exportExcelReport()">下載完整 Excel 報表（.xlsx）</button>
+          <button class="btn btn-primary" onclick="copyMinutesText()">複製會議記錄草稿</button>
+          <button class="btn" onclick="window.print()">列印／另存 PDF</button>
+        </div>
+      </div>
+
+      <div class="kpi-strip" id="report-kpi"></div>
+      <div id="report-winners-banner"></div>
+
+      <h3 style="font-size:14px; margin:16px 0 8px; color:var(--navy);">各輪篩選摘要表</h3>
+      <div class="table-wrap" style="margin-bottom:18px;">
+        <table id="report-summary-table"></table>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+        <h3 style="font-size:14px; margin:0; color:var(--navy);">正式會議記錄草稿（可直接貼入 Word / Google Docs）</h3>
+        <div style="display:flex; gap:8px; align-items:center;" class="no-print">
+          <label style="font-size:12.5px; display:inline-flex; align-items:center; gap:5px; cursor:pointer;">
+            <input type="checkbox" id="chk-minutes-mock" onchange="renderReport()"> 標註為「模擬投票（不具實質效力）」
+          </label>
+        </div>
+      </div>
+      <div class="minutes-box" id="minutes-output"></div>
+    </div>
+  </section>
+</main>
+
+<!-- Rules Modal -->
+<div class="modal-backdrop" id="rules-modal" onclick="if(event.target===this) closeRulesModal()">
+  <div class="modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h2>優先排序制及同票機制議事規則</h2>
+      <button class="btn btn-sm" onclick="closeRulesModal()">關閉</button>
+    </div>
+    <strong>一、優先排序制（李亭慧動議）</strong>
+    <ul>
+      <li>投票前，每位成員為當前所有選項排列優先順序（1 為最優先）。</li>
+      <li>每位成員獲配當前選項總數 33% 之票數（最少 1 票），依優先順序分配，每個選項上限 1 票。</li>
+      <li>得票逾投票人數 50%（例：6 人投票即 ≥ 4 票）之選項進入下一輪投票。</li>
+      <li>若所有選項皆未逾投票人數 50%，則挑選最高票選項勝出／晉級；如最高票同票且影響最終結果，須進入同票機制；若不影響最終結果，則所有最高同票選項一同進入下一輪。</li>
+      <li>若成員選票投予已晉級選項，該選票依優先順序順延至未晉級選項並重新計票，重複直至至少 50% 之選項晉級下一輪。</li>
+      <li><strong>不足所需選項總數之即時截選：</strong>若按 50% 晉級門檻篩選後，下一輪選項少於所需總數（例：30 選 20 時 50% 僅餘 15 項），則立刻依本輪得票高低從原選項選出所需總數；如最後入選名額與淘汰邊界同票（例：第 20 與第 21 位同票），僅就該等邊界同票選項啟動同票機制。</li>
+      <li>新一輪投票由成員重排優先次序並重複上述程序，直至選出所需選項總數。</li>
+    </ul>
+    <strong>二、同票機制（余穎浠動議）</strong>
+    <ul>
+      <li>每位成員就同票選項重排次序前，擁有 2 分鐘發表意見的權利。</li>
+      <li>成員僅就同票選項重新排列優先次序，每人獲配同票選項數 33%（最少 1 票）之票數，每項上限 1 票。</li>
+      <li>同票機制下由最高票數直接勝出。</li>
+      <li>若重投後再次出現影響名額之同票結果，會議主席必須動用主席票裁決。</li>
+    </ul>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const EMBEDDED_PRESETS = {"demo2": {"title": "Demo 2：國家選項模擬投票（30 選 2）", "voters": ["Elina", "Helen", "Kelvin", "Percy", "Rita", "Effie"], "target": 2, "mode": "cutoff", "rounds": {"1": {"options": ["阿富汗", "美國", "中國", "日本", "英國", "法國", "德國", "義大利", "西班牙", "加拿大", "澳洲", "印度", "俄羅斯", "巴西", "南韓", "墨西哥", "埃及", "南非", "土耳其", "泰國", "印尼", "伊朗", "巴基斯坦", "越南", "希臘", "瑞士", "荷蘭", "瑞典", "挪威", "紐西蘭"], "ranks": [[25, 26, 29, 15, 28, 3], [26, 16, 30, 16, 29, 15], [1, 1, 1, 17, 8, 1], [2, 7, 2, 13, 9, 20], [24, 3, 28, 14, 10, 16], [3, 17, 22, 5, 25, 23], [23, 27, 3, 28, 24, 14], [15, 19, 18, 6, 23, 28], [16, 20, 19, 4, 22, 19], [22, 2, 20, 27, 21, 29], [5, 13, 21, 26, 11, 24], [17, 18, 26, 7, 30, 2], [6, 14, 27, 3, 27, 27], [21, 25, 25, 29, 12, 7], [7, 12, 14, 1, 13, 10], [4, 30, 16, 25, 14, 18], [20, 8, 15, 22, 15, 30], [27, 29, 17, 23, 16, 6], [29, 24, 9, 24, 20, 9], [18, 15, 11, 11, 19, 11], [8, 28, 10, 2, 18, 8], [28, 23, 24, 12, 17, 4], [30, 22, 23, 8, 26, 5], [19, 21, 12, 30, 7, 25], [14, 11, 13, 18, 6, 12], [13, 5, 4, 9, 5, 21], [12, 6, 6, 10, 4, 26], [9, 10, 5, 19, 1, 13], [11, 9, 8, 20, 2, 22], [10, 4, 7, 21, 3, 17]]}, "2": {"options": ["中國", "日本", "英國", "澳洲", "南韓", "埃及", "土耳其", "泰國", "印尼", "伊朗", "越南", "希臘", "瑞士", "荷蘭", "瑞典", "挪威", "紐西蘭"], "ranks": [[1, 9, 1, 7, 17, 1], [11, 4, 2, 17, 16, 7], [2, 2, 17, 6, 15, 10], [4, 12, 16, 12, 8, 9], [3, 11, 6, 13, 7, 8], [12, 8, 15, 16, 3, 16], [16, 14, 14, 14, 4, 4], [9, 15, 13, 15, 6, 5], [10, 16, 11, 5, 14, 3], [17, 17, 12, 11, 13, 2], [15, 13, 10, 10, 12, 6], [13, 7, 9, 9, 11, 12], [14, 5, 3, 3, 10, 15], [6, 10, 4, 8, 5, 11], [7, 6, 5, 1, 1, 17], [8, 3, 8, 2, 2, 13], [5, 1, 7, 4, 9, 14]]}, "3": {"options": ["中國", "日本", "南韓", "印尼", "瑞士", "荷蘭", "瑞典", "挪威", "紐西蘭"], "ranks": [[9, 8, 1, 7, 9, 1], [8, 7, 2, 9, 8, 6], [1, 6, 9, 4, 7, 7], [7, 9, 8, 3, 6, 2], [6, 5, 3, 8, 5, 5], [2, 4, 5, 5, 4, 8], [3, 3, 7, 1, 1, 4], [5, 2, 4, 2, 2, 9], [4, 1, 6, 6, 3, 3]]}, "4": {"options": ["南韓", "印尼", "瑞士", "荷蘭", "瑞典", "挪威", "紐西蘭"], "ranks": [[3, 7, 6, 6, 7, 5], [5, 6, 7, 2, 5, 1], [7, 5, 1, 7, 4, 3], [1, 4, 3, 5, 3, 6], [6, 3, 2, 1, 1, 2], [2, 2, 4, 4, 2, 7], [4, 1, 5, 3, 6, 4]]}, "5": {"options": ["瑞士", "荷蘭", "瑞典", "挪威", "紐西蘭"], "ranks": [[5, 5, 1, 4, 3, 4], [1, 4, 2, 3, 4, 1], [4, 3, 3, 1, 1, 5], [3, 2, 5, 2, 2, 2], [2, 1, 4, 5, 5, 3]]}, "6": {"options": ["瑞士", "荷蘭", "瑞典", "挪威"], "ranks": [[4, 4, 1, 4, 3, 3], [1, 3, 2, 3, 4, 1], [3, 2, 3, 1, 1, 4], [2, 1, 4, 2, 2, 2]]}}}, "demo1": {"title": "Demo 1：代碼選項模擬投票（30 選 20）", "voters": ["Elina", "Helen", "Kelvin", "Percy", "Rita", "Effie"], "target": 20, "mode": "cutoff", "rounds": {"1": {"options": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "AA", "AB", "AC", "AD"], "ranks": [[28, 7, 2, 23, 1, 13], [23, 19, 4, 24, 18, 14], [30, 21, 11, 25, 28, 23], [27, 8, 3, 19, 29, 24], [5, 20, 7, 20, 3, 1], [18, 6, 12, 21, 10, 15], [20, 18, 13, 22, 27, 12], [13, 4, 5, 26, 12, 16], [19, 28, 8, 27, 25, 2], [4, 5, 17, 28, 26, 22], [7, 3, 10, 30, 24, 3], [16, 22, 9, 18, 11, 11], [26, 2, 16, 17, 2, 25], [11, 9, 6, 14, 23, 4], [25, 27, 15, 15, 5, 5], [24, 26, 18, 16, 14, 17], [12, 12, 22, 6, 22, 27], [22, 23, 23, 13, 4, 6], [21, 17, 14, 5, 21, 18], [15, 11, 21, 12, 13, 7], [3, 29, 24, 9, 17, 28], [17, 10, 1, 10, 6, 26], [14, 25, 20, 11, 19, 8], [6, 13, 25, 1, 7, 21], [9, 24, 26, 3, 15, 30], [29, 1, 27, 2, 9, 9], [2, 15, 28, 7, 16, 29], [1, 16, 29, 8, 20, 19], [10, 14, 19, 4, 8, 10], [8, 30, 30, 29, 30, 20]]}}}};
+
+// =========================================================================
+// Global Application State
+// =========================================================================
+const state = {
+  config: {
+    title: '會議議題表決',
+    target: 2,
+    isMock: false,
+    shortfallMode: 'cutoff', // 'cutoff' | 'continue'
+    voteCalcMode: 'round',   // 'round' | 'ceil' | 'floor'
+    activePresetKey: null
+  },
+  voters: [],
+  initialOptions: [],
+  currentRound: 1,
+  currentOptions: [],
+  currentRankings: [],       // [optionIdx][voterIdx] = rank (1..N)
+  prevRoundRankingsMap: {},  // { optionName: [rank_v0, ...] }
+  // Counting state for active round
+  roundActive: false,
+  promotedInRound: [],       // option names promoted so far in current round
+  roundSubstep: 0,           // 0 = not started, 1 = initial, 2+ = rollovers
+  roundFinished: false,
+  allFinished: false,
+  finalWinners: [],
+  // History logs across all rounds
+  roundsSummary: [],         // [{ round, startCount, votesPerVoter, majorityThreshold, substeps, promoted, eliminated, note }]
+  stepLogs: [],              // [{ id, round, substep, label, badge, options, voters, rankings, voteFlags, counts, newlyPromoted, cumPromoted, statusMap, note }]
+  selectedLogIdx: -1,
+  tieHistory: [],            // [{ round, context, tiedOptions, slotsNeeded, speakers, tieVotes, chairUsed, chairSelected, winners }]
+  // Pending tie-break event
+  pendingTie: null
+};
+
+// Timer state
+let timerSec = 120;
+let timerInterval = null;
+
+// =========================================================================
+// Helpers
+// =========================================================================
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function calcVotesPerVoter(n) {
+  const mode = state.config.voteCalcMode;
+  if (mode === 'ceil') return Math.max(1, Math.ceil(n * 0.33));
+  if (mode === 'floor') return Math.max(1, Math.floor(n * 0.33));
+  return Math.max(1, Math.round(n / 3));
+}
+
+function calcMajorityThreshold(numVoters) {
+  return Math.floor(numVoters / 2) + 1; // strictly > 50%
+}
+
+function calcHalfOptionTarget(n) {
+  return Math.ceil(n * 0.5);
+}
+
+function parseList(raw) {
+  return raw
+    .split(/[\n,，、]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function dedupeList(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const item of arr) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function generateRandomRankings(numOptions, numVoters) {
+  const ranks = Array.from({ length: numOptions }, () => new Array(numVoters).fill(0));
+  const base = Array.from({ length: numOptions }, (_, i) => i + 1);
+  for (let v = 0; v < numVoters; v++) {
+    const perm = shuffle(base);
+    for (let o = 0; o < numOptions; o++) {
+      ranks[o][v] = perm[o];
+    }
+  }
+  return ranks;
+}
+
+function switchTab(name) {
+  const tabs = ['setup', 'input', 'count', 'tie', 'report'];
+  for (const t of tabs) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+  }
+  if (name === 'tie') renderTiePanel();
+  if (name === 'report') renderReport();
+}
+
+function openRulesModal() { document.getElementById('rules-modal').classList.add('open'); }
+function closeRulesModal() { document.getElementById('rules-modal').classList.remove('open'); }
+
+// =========================================================================
+// Step 1: Setup & Presets
+// =========================================================================
+function quickGenerateVoters() {
+  const n = Math.min(50, Math.max(2, parseInt(document.getElementById('gen-v-cnt').value, 10) || 6));
+  const list = Array.from({ length: n }, (_, i) => `成員 ${i + 1}`);
+  document.getElementById('cfg-voters').value = list.join('\n');
+  refreshRulePreview();
+}
+
+function quickGenerateOptions() {
+  const n = Math.min(200, Math.max(2, parseInt(document.getElementById('gen-o-cnt').value, 10) || 30));
+  const list = Array.from({ length: n }, (_, i) => `選項 ${i + 1}`);
+  document.getElementById('cfg-options').value = list.join('\n');
+  refreshRulePreview();
+}
+
+function refreshRulePreview() {
+  const voters = dedupeList(parseList(document.getElementById('cfg-voters').value));
+  const options = dedupeList(parseList(document.getElementById('cfg-options').value));
+  const target = parseInt(document.getElementById('cfg-target').value, 10) || 1;
+  state.config.voteCalcMode = document.getElementById('cfg-vote-calc').value;
+  state.config.shortfallMode = document.getElementById('cfg-shortfall').value;
+
+  document.getElementById('voters-count-hint').textContent = `目前：${voters.length} 位成員（過半門檻：≥ ${calcMajorityThreshold(voters.length)} 票）`;
+  document.getElementById('options-count-hint').textContent = `目前：${options.length} 個選項（首輪 50% 門檻：${calcHalfOptionTarget(options.length)} 項）`;
+
+  const vpv = calcVotesPerVoter(options.length || 1);
+  const maj = calcMajorityThreshold(voters.length || 1);
+  const half = calcHalfOptionTarget(options.length || 1);
+  const willShortfall = half < target;
+
+  let msg = `<strong>規則預覽：</strong>共 <strong>${voters.length}</strong> 位成員就 <strong>${options.length}</strong> 個選項選出 <strong>${target}</strong> 項。首輪每人獲配 <strong>${vpv} 票</strong>（每項上限 1 票），得票逾 50% 即 <strong>≥ ${maj} 票</strong> 晉級。`;
+  if (willShortfall) {
+    msg += `<br><span style="color:var(--amber); font-weight:600;">提醒：首輪 50%（${half} 項）少於所需目標數（${target} 項），將依你選擇的「${state.config.shortfallMode === 'cutoff' ? '標準規則：即時依票數高低從 ' + options.length + ' 項中選出 ' + target + ' 項' : 'Demo 1 順延模式：續行選票順延至補足 ' + target + ' 項'}」執行。</span>`;
+  }
+  document.getElementById('setup-rule-preview').innerHTML = msg;
+}
+
+function loadPreset(key) {
+  state.config.activePresetKey = key;
+  if (key === 'demo2') {
+    const d = EMBEDDED_PRESETS.demo2;
+    document.getElementById('cfg-title').value = d.title;
+    document.getElementById('cfg-target').value = d.target;
+    document.getElementById('cfg-official').value = 'mock';
+    document.getElementById('cfg-shortfall').value = 'cutoff';
+    document.getElementById('cfg-vote-calc').value = 'round';
+    document.getElementById('cfg-voters').value = d.voters.join('\n');
+    document.getElementById('cfg-options').value = d.rounds['1'].options.join('\n');
+    refreshRulePreview();
+    applySetupAndNext(d.rounds['1'].ranks);
+    showToast('已載入 Demo 2 真實數據（30 選 2，含 6 輪真實排序）');
+    return;
+  }
+  if (key === 'demo1') {
+    const d = EMBEDDED_PRESETS.demo1;
+    document.getElementById('cfg-title').value = d.title;
+    document.getElementById('cfg-target').value = d.target;
+    document.getElementById('cfg-official').value = 'mock';
+    document.getElementById('cfg-shortfall').value = 'continue';
+    document.getElementById('cfg-vote-calc').value = 'round';
+    document.getElementById('cfg-voters').value = d.voters.join('\n');
+    document.getElementById('cfg-options').value = d.rounds['1'].options.join('\n');
+    refreshRulePreview();
+    applySetupAndNext(d.rounds['1'].ranks);
+    showToast('已載入 Demo 1 真實數據（30 選 20）');
+    return;
+  }
+  if (key === '30to10') {
+    document.getElementById('cfg-title').value = '模擬測試：30 選 10';
+    document.getElementById('cfg-target').value = 10;
+    document.getElementById('cfg-official').value = 'mock';
+    document.getElementById('cfg-shortfall').value = 'cutoff';
+    document.getElementById('cfg-voters').value = Array.from({ length: 8 }, (_, i) => `成員 ${i + 1}`).join('\n');
+    document.getElementById('cfg-options').value = Array.from({ length: 30 }, (_, i) => `提案 ${i + 1}`).join('\n');
+    refreshRulePreview();
+    applySetupAndNext(generateRandomRankings(30, 8));
+    showToast('已生成 30 選 10（8 人）隨機排序範例');
+    return;
+  }
+  if (key === '100to2') {
+    document.getElementById('cfg-title').value = '模擬測試：100 選 2';
+    document.getElementById('cfg-target').value = 2;
+    document.getElementById('cfg-official').value = 'mock';
+    document.getElementById('cfg-shortfall').value = 'cutoff';
+    document.getElementById('cfg-voters').value = Array.from({ length: 10 }, (_, i) => `委員 ${i + 1}`).join('\n');
+    document.getElementById('cfg-options').value = Array.from({ length: 100 }, (_, i) => `選項 ${String(i + 1).padStart(3, '0')}`).join('\n');
+    refreshRulePreview();
+    applySetupAndNext(generateRandomRankings(100, 10));
+    showToast('已生成 100 選 2（10 人）隨機排序範例');
+    return;
+  }
+  if (key === '100to40') {
+    document.getElementById('cfg-title').value = '模擬測試：100 選 40';
+    document.getElementById('cfg-target').value = 40;
+    document.getElementById('cfg-official').value = 'mock';
+    document.getElementById('cfg-shortfall').value = 'cutoff';
+    document.getElementById('cfg-voters').value = Array.from({ length: 12 }, (_, i) => `委員 ${i + 1}`).join('\n');
+    document.getElementById('cfg-options').value = Array.from({ length: 100 }, (_, i) => `項目 ${String(i + 1).padStart(3, '0')}`).join('\n');
+    refreshRulePreview();
+    applySetupAndNext(generateRandomRankings(100, 12));
+    showToast('已生成 100 選 40（12 人）隨機排序範例');
+    return;
+  }
+  if (key === 'tieDemo') {
+    document.getElementById('cfg-title').value = '同票機制示範（6 選 2）';
+    document.getElementById('cfg-target').value = 2;
+    document.getElementById('cfg-official').value = 'mock';
+    document.getElementById('cfg-shortfall').value = 'cutoff';
+    document.getElementById('cfg-voters').value = ['Elina', 'Helen', 'Kelvin', 'Percy', 'Rita', 'Effie'].join('\n');
+    document.getElementById('cfg-options').value = ['方案甲', '方案乙', '方案丙', '方案丁', '方案戊', '方案己'].join('\n');
+    // Crafted so none >3 votes (6 voters, 2 votes each -> max 3 votes each on 3 tied options -> triggers tie mechanism!)
+    const crafted = [
+      [1, 1, 2, 4, 5, 6], // 方案甲: 3 votes
+      [2, 3, 1, 1, 4, 5], // 方案乙: 3 votes
+      [3, 2, 4, 2, 1, 1], // 方案丙: 4 votes -> wait make it 3 votes each:
+      [4, 4, 3, 3, 2, 2], // 方案丁: 2 votes
+      [5, 5, 5, 5, 3, 3], // 方案戊: 0 votes
+      [6, 6, 6, 6, 6, 4]  // 方案己: 0 votes
+    ];
+    // Adjust so 方案甲, 方案乙, 方案丙 each get exactly 3 votes (none >=4, 3-way tie for 2 spots!)
+    const exactTie = [
+      [1, 1, 1, 4, 5, 6], // 甲: 3票 (v0,v1,v2)
+      [2, 4, 5, 1, 1, 2], // 乙: 3票 (v0,v3,v4,v5 -> wait v5 has rank 2 = 4th!)
+      [4, 2, 2, 2, 4, 1], // 丙: 3票
+      [3, 3, 3, 3, 2, 3], // 丁: 1票
+      [5, 5, 4, 5, 3, 4], // 戊: 0票
+      [6, 6, 6, 6, 6, 5]  // 己: 0票
+    ];
+    // Let's verify 2 votes per voter (12 total):
+    // v0: 甲(1), 乙(2)
+    // v1: 甲(1), 丙(2)
+    // v2: 甲(1), 丁(2)
+    // v3: 乙(1), 丙(2)
+    // v4: 乙(1), 戊(2)
+    // v5: 丙(1), 己(2)
+    // Totals: 甲=3, 乙=3, 丙=3, 丁=1, 戊=1, 己=1 -> NO option >=4, top 3 tied at 3 votes for 2 slots -> guaranteed tie-breaker!
+    const guaranteedTie = [
+      [1, 1, 1, 4, 4, 4], // 甲: 3
+      [2, 4, 4, 1, 1, 5], // 乙: 3
+      [4, 2, 5, 2, 5, 1], // 丙: 3
+      [3, 3, 2, 3, 3, 3], // 丁: 1
+      [5, 5, 3, 5, 2, 6], // 戊: 1
+      [6, 6, 6, 6, 6, 2]  // 己: 1
+    ];
+    refreshRulePreview();
+    applySetupAndNext(guaranteedTie);
+    showToast('已載入同票示範（甲、乙、丙皆 3 票，必觸發同票機制）');
+    return;
+  }
+}
+
+function applySetupAndNext(presetRankings = null) {
+  const voters = dedupeList(parseList(document.getElementById('cfg-voters').value));
+  const options = dedupeList(parseList(document.getElementById('cfg-options').value));
+  const target = parseInt(document.getElementById('cfg-target').value, 10);
+
+  if (voters.length < 2 || voters.length > 50) {
+    alert('投票成員人數須介於 2 至 50 人之間。');
+    return;
+  }
+  if (options.length < 2 || options.length > 200) {
+    alert('初始選項數量須介於 2 至 200 項之間。');
+    return;
+  }
+  if (!target || target < 1 || target >= options.length) {
+    alert(`最終所需選項總數須介於 1 至 ${options.length - 1} 之間。`);
+    return;
+  }
+
+  state.config.title = document.getElementById('cfg-title').value.trim() || '會議議題表決';
+  state.config.target = target;
+  state.config.isMock = document.getElementById('cfg-official').value === 'mock';
+  state.config.shortfallMode = document.getElementById('cfg-shortfall').value;
+  state.config.voteCalcMode = document.getElementById('cfg-vote-calc').value;
+  if (!presetRankings) state.config.activePresetKey = null;
+
+  state.voters = voters;
+  state.initialOptions = options.slice();
+  state.currentRound = 1;
+  state.currentOptions = options.slice();
+  state.currentRankings = presetRankings
+    ? presetRankings.map(r => r.slice())
+    : Array.from({ length: options.length }, () => new Array(voters.length).fill(''));
+  state.prevRoundRankingsMap = {};
+  state.roundActive = false;
+  state.promotedInRound = [];
+  state.roundSubstep = 0;
+  state.roundFinished = false;
+  state.allFinished = false;
+  state.finalWinners = [];
+  state.roundsSummary = [];
+  state.stepLogs = [];
+  state.selectedLogIdx = -1;
+  state.tieHistory = [];
+  state.pendingTie = null;
+
+  document.getElementById('tab-tie').classList.remove('alert');
+  document.getElementById('tab-report').classList.remove('done');
+  document.getElementById('chk-minutes-mock').checked = state.config.isMock;
+
+  renderInputPanel();
+  switchTab('input');
+}
+
+function resetAll() {
+  if (!confirm('確定要重設目前所有表決進度並返回基本設定嗎？')) return;
+  state.roundActive = false;
+  state.allFinished = false;
+  state.pendingTie = null;
+  document.getElementById('tab-tie').classList.remove('alert');
+  document.getElementById('tab-report').classList.remove('done');
+  switchTab('setup');
+}
+
+// =========================================================================
+// Step 2: Ranking Input Table, Validation, Paste & Excel Import
+// =========================================================================
+function renderInputPanel() {
+  const n = state.currentOptions.length;
+  const v = state.voters.length;
+  const vpv = calcVotesPerVoter(n);
+  const maj = calcMajorityThreshold(v);
+  const half = calcHalfOptionTarget(n);
+
+  document.getElementById('input-round-title').textContent = `第 ${state.currentRound} 輪 — 優先排序錄入（${n} 個選項）`;
+  document.getElementById('input-round-sub').textContent = `請為每位成員輸入 1 至 ${n} 的不重複優先次序（1 為最優先），系統將自動分配前 ${vpv} 票。`;
+
+  document.getElementById('btn-carry-prev').style.display = state.currentRound > 1 ? 'inline-flex' : 'none';
+  const hasDemo2Data = state.config.activePresetKey === 'demo2' && EMBEDDED_PRESETS.demo2.rounds[String(state.currentRound)];
+  document.getElementById('btn-demo2-round').style.display = hasDemo2Data ? 'inline-flex' : 'none';
+
+  document.getElementById('input-kpi').innerHTML = `
+    <div class="kpi"><div class="k-label">當前輪次</div><div class="k-val">第 ${state.currentRound} 輪</div></div>
+    <div class="kpi"><div class="k-label">本輪選項數</div><div class="k-val">${n} 項</div></div>
+    <div class="kpi"><div class="k-label">最終目標總數</div><div class="k-val">${state.config.target} 項</div></div>
+    <div class="kpi"><div class="k-label">每人獲配票數 (33%)</div><div class="k-val">${vpv} 票</div></div>
+    <div class="kpi"><div class="k-label">過半門檻 (>50%)</div><div class="k-val">≥ ${maj} 票</div></div>
+    <div class="kpi"><div class="k-label">本輪 50% 晉級門檻</div><div class="k-val">${half} 項</div></div>
+  `;
+
+  const tbl = document.getElementById('ranking-table');
+  let html = '<thead><tr><th class="sticky-col">選項名稱</th>';
+  state.voters.forEach((vn, vi) => {
+    html += `<th>${escapeHtml(vn)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  state.currentOptions.forEach((opt, oi) => {
+    html += `<tr><td class="sticky-col">${escapeHtml(opt)}</td>`;
+    state.voters.forEach((_, vi) => {
+      const val = state.currentRankings[oi]?.[vi] ?? '';
+      html += `<td><input type="number" class="rank-input" min="1" max="${n}" data-o="${oi}" data-v="${vi}" value="${val}" oninput="onRankInput(this)"></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+  validateCurrentRankings(false);
+}
+
+function onRankInput(inp) {
+  const oi = parseInt(inp.dataset.o, 10);
+  const vi = parseInt(inp.dataset.v, 10);
+  const v = inp.value === '' ? '' : parseInt(inp.value, 10);
+  state.currentRankings[oi][vi] = v;
+  validateCurrentRankings(false);
+}
+
+function validateCurrentRankings(showErrorBanner = true) {
+  const n = state.currentOptions.length;
+  const vCount = state.voters.length;
+  const errors = [];
+  const invalidCells = new Set();
+
+  for (let vi = 0; vi < vCount; vi++) {
+    const seen = new Map();
+    let missing = 0;
+    let outOfRange = 0;
+    let dupes = 0;
+    for (let oi = 0; oi < n; oi++) {
+      const val = state.currentRankings[oi][vi];
+      if (val === '' || val === null || Number.isNaN(val)) {
+        missing++;
+        invalidCells.add(`${oi}-${vi}`);
+      } else if (!Number.isInteger(val) || val < 1 || val > n) {
+        outOfRange++;
+        invalidCells.add(`${oi}-${vi}`);
+      } else if (seen.has(val)) {
+        dupes++;
+        invalidCells.add(`${oi}-${vi}`);
+        invalidCells.add(`${seen.get(val)}-${vi}`);
+      } else {
+        seen.set(val, oi);
+      }
+    }
+    if (missing || outOfRange || dupes) {
+      const parts = [];
+      if (missing) parts.push(`缺填 ${missing} 格`);
+      if (outOfRange) parts.push(`超出 1–${n} 範圍 ${outOfRange} 格`);
+      if (dupes) parts.push(`重複名次 ${dupes} 處`);
+      errors.push(`${state.voters[vi]}（${parts.join('、')}）`);
+    }
+  }
+
+  document.querySelectorAll('#ranking-table .rank-input').forEach(inp => {
+    const key = `${inp.dataset.o}-${inp.dataset.v}`;
+    inp.classList.toggle('invalid', showErrorBanner && invalidCells.has(key));
+  });
+
+  const banner = document.getElementById('input-validation-banner');
+  if (errors.length === 0) {
+    banner.innerHTML = `<div class="banner banner-ok">✓ 所有 ${vCount} 位成員之 1–${n} 優先排序皆已完整且無重複，可開始計票。</div>`;
+    return true;
+  } else if (showErrorBanner) {
+    banner.innerHTML = `<div class="banner banner-err"><div><strong>排序驗證未通過：</strong>${errors.slice(0, 6).join('；')}${errors.length > 6 ? ' 等...' : ''}</div></div>`;
+    return false;
+  } else {
+    banner.innerHTML = `<div class="banner banner-info">尚有成員未完成 1–${n} 不重複排序（目前待完成：${errors.length} 位），你可手動輸入、匯入 Excel 或按「隨機填入測試排序」。</div>`;
+    return false;
+  }
+}
+
+function randomizeCurrentRankings() {
+  state.currentRankings = generateRandomRankings(state.currentOptions.length, state.voters.length);
+  renderInputPanel();
+  showToast('已隨機產生本輪有效排序');
+}
+
+function carryOverPreviousRankings() {
+  const n = state.currentOptions.length;
+  const vCount = state.voters.length;
+  const newRanks = Array.from({ length: n }, () => new Array(vCount).fill(0));
+  for (let vi = 0; vi < vCount; vi++) {
+    const items = state.currentOptions.map((opt, oi) => {
+      const prev = state.prevRoundRankingsMap[opt];
+      return { oi, prevRank: prev ? prev[vi] : oi + 1 };
+    });
+    items.sort((a, b) => a.prevRank - b.prevRank);
+    items.forEach((it, idx) => { newRanks[it.oi][vi] = idx + 1; });
+  }
+  state.currentRankings = newRanks;
+  renderInputPanel();
+  showToast('已沿用上一輪之相對優先順序自動重排');
+}
+
+function loadDemo2CurrentRound() {
+  const rd = EMBEDDED_PRESETS.demo2.rounds[String(state.currentRound)];
+  if (!rd) return;
+  const map = {};
+  rd.options.forEach((opt, i) => { map[opt] = rd.ranks[i]; });
+  const newRanks = state.currentOptions.map((opt, oi) => {
+    if (map[opt]) return map[opt].slice();
+    return Array.from({ length: state.voters.length }, () => oi + 1);
+  });
+  // Normalize each voter column strictly 1..N
+  for (let vi = 0; vi < state.voters.length; vi++) {
+    const arr = newRanks.map((r, oi) => ({ oi, val: r[vi] }));
+    arr.sort((a, b) => a.val - b.val);
+    arr.forEach((it, idx) => { newRanks[it.oi][vi] = idx + 1; });
+  }
+  state.currentRankings = newRanks;
+  renderInputPanel();
+  showToast(`已套用 Demo 2 第 ${state.currentRound} 輪真實排序`);
+}
+
+function togglePasteBox() {
+  const el = document.getElementById('paste-box-wrap');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyPastedMatrix() {
+  const raw = document.getElementById('paste-textarea').value.trim();
+  if (!raw) return;
+  const rows = raw.split(/\r?\n/).map(line => line.split(/\t|,/).map(c => c.trim()));
+  const n = state.currentOptions.length;
+  const vCount = state.voters.length;
+
+  // Detect optional header row & option name column
+  let startRow = 0;
+  if (rows.length > n && rows[0].some(c => isNaN(Number(c)) || c === '')) {
+    startRow = 1;
+  }
+  const dataRows = rows.slice(startRow, startRow + n);
+  if (dataRows.length === 0) {
+    alert('未能解析到資料列。');
+    return;
+  }
+  const hasOptionCol = dataRows[0].length >= vCount + 1 && isNaN(Number(dataRows[0][0]));
+  const optIndexMap = new Map(state.currentOptions.map((o, i) => [o, i]));
+
+  let filled = 0;
+  dataRows.forEach((cols, rIdx) => {
+    let targetOi = rIdx;
+    let offset = 0;
+    if (hasOptionCol) {
+      offset = 1;
+      if (optIndexMap.has(cols[0])) targetOi = optIndexMap.get(cols[0]);
+    }
+    if (targetOi < n) {
+      for (let vi = 0; vi < vCount; vi++) {
+        const val = parseInt(cols[vi + offset], 10);
+        if (!Number.isNaN(val)) {
+          state.currentRankings[targetOi][vi] = val;
+          filled++;
+        }
+      }
+    }
+  });
+  togglePasteBox();
+  renderInputPanel();
+  validateCurrentRankings(true);
+  showToast(`已從剪貼簿填入 ${filled} 筆排序資料`);
+}
+
+function downloadBlankTemplate() {
+  const header = ['選項', ...state.voters];
+  const aoa = [header];
+  state.currentOptions.forEach(opt => {
+    aoa.push([opt, ...state.voters.map(() => '')]);
+  });
+  if (typeof XLSX !== 'undefined') {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, `第${state.currentRound}輪排序範本`);
+    XLSX.writeFile(wb, `${state.config.title}_第${state.currentRound}輪排序範本.xlsx`);
+    showToast('已下載本輪空白 Excel 範本');
+  } else {
+    const csv = '\uFEFF' + aoa.map(r => r.join(',')).join('\n');
+    downloadBlob(csv, `${state.config.title}_第${state.currentRound}輪排序範本.csv`, 'text/csv;charset=utf-8;');
+    showToast('已下載 CSV 排序範本（離線模式）');
+  }
+}
+
+function handleExcelImport(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let aoa;
+      if (file.name.toLowerCase().endsWith('.csv') || typeof XLSX === 'undefined') {
+        const text = new TextDecoder('utf-8').decode(e.target.result);
+        aoa = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean).map(l => l.split(','));
+      } else {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      }
+      // Find header row containing voters or '選項'
+      let headerIdx = aoa.findIndex(r => r.some(c => String(c).trim() === '選項') || r.some(c => state.voters.includes(String(c).trim())));
+      if (headerIdx < 0) headerIdx = 0;
+      const hdr = aoa[headerIdx].map(c => String(c).trim());
+      const body = aoa.slice(headerIdx + 1).filter(r => String(r[0] ?? '').trim() !== '');
+
+      // If round 1 and user uploaded a brand new voter/option table, offer to adopt it directly
+      if (state.currentRound === 1 && body.length >= 2) {
+        const fileVoters = hdr.slice(1).filter(v => v && v !== '票數' && v !== '結果' && !v.includes('選項'));
+        const fileOpts = body.map(r => String(r[0]).trim());
+        const exactMatch = fileOpts.length === state.currentOptions.length && fileOpts.every((o, i) => o === state.currentOptions[i]);
+        if (!exactMatch && fileVoters.length >= 2) {
+          state.voters = fileVoters;
+          state.initialOptions = fileOpts.slice();
+          state.currentOptions = fileOpts.slice();
+          state.currentRankings = body.map(r => fileVoters.map((_, vi) => {
+            const val = parseInt(r[vi + 1], 10);
+            return Number.isNaN(val) ? '' : val;
+          }));
+          if (state.config.target >= fileOpts.length) state.config.target = Math.max(1, fileOpts.length - 1);
+          document.getElementById('cfg-voters').value = fileVoters.join('\n');
+          document.getElementById('cfg-options').value = fileOpts.join('\n');
+          document.getElementById('cfg-target').value = state.config.target;
+          renderInputPanel();
+          validateCurrentRankings(true);
+          showToast(`已依檔案重建名單（${fileVoters.length} 人，${fileOpts.length} 項）`);
+          return;
+        }
+      }
+
+      // Match options by name
+      const optMap = new Map(state.currentOptions.map((o, i) => [o, i]));
+      let loaded = 0;
+      body.forEach((row, rIdx) => {
+        const name = String(row[0]).trim();
+        const oi = optMap.has(name) ? optMap.get(name) : (rIdx < state.currentOptions.length ? rIdx : -1);
+        if (oi >= 0) {
+          for (let vi = 0; vi < state.voters.length; vi++) {
+            const val = parseInt(row[vi + 1], 10);
+            if (!Number.isNaN(val)) {
+              state.currentRankings[oi][vi] = val;
+              loaded++;
+            }
+          }
+        }
+      });
+      renderInputPanel();
+      validateCurrentRankings(true);
+      showToast(`成功匯入 ${loaded} 筆排序資料`);
+    } catch (err) {
+      alert('匯入檔案失敗：' + err.message);
+    } finally {
+      evt.target.value = '';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// =========================================================================
+// Step 3: Core Counting & Rollover Engine
+// =========================================================================
+function startRoundCounting(runToEndOfRound) {
+  if (!validateCurrentRankings(true)) {
+    showToast('請先修正標紅的排序錯誤');
+    return;
+  }
+  // Save map for potential carry-over next round
+  state.prevRoundRankingsMap = {};
+  state.currentOptions.forEach((opt, oi) => {
+    state.prevRoundRankingsMap[opt] = state.currentRankings[oi].slice();
+  });
+
+  state.roundActive = true;
+  state.promotedInRound = [];
+  state.roundSubstep = 0;
+  state.roundFinished = false;
+
+  switchTab('count');
+  runNextSubstep();
+  if (runToEndOfRound) {
+    finishCurrentRound();
+  }
+}
+
+function computeVotesForRemaining(remainingOptions) {
+  const nTotal = state.currentOptions.length;
+  const vCount = state.voters.length;
+  const vpv = calcVotesPerVoter(nTotal);
+  const optToIdx = new Map(state.currentOptions.map((o, i) => [o, i]));
+
+  const voteFlags = Array.from({ length: remainingOptions.length }, () => new Array(vCount).fill(false));
+  const counts = new Array(remainingOptions.length).fill(0);
+  const subRankings = remainingOptions.map(opt => state.currentRankings[optToIdx.get(opt)].slice());
+
+  for (let vi = 0; vi < vCount; vi++) {
+    const ranked = remainingOptions.map((opt, idx) => ({ idx, rank: subRankings[idx][vi] }));
+    ranked.sort((a, b) => a.rank - b.rank);
+    const alloc = Math.min(vpv, ranked.length);
+    for (let k = 0; k < alloc; k++) {
+      const rIdx = ranked[k].idx;
+      voteFlags[rIdx][vi] = true;
+      counts[rIdx]++;
+    }
+  }
+  return { voteFlags, counts, subRankings, vpv };
+}
+
+function runNextSubstep() {
+  if (!state.roundActive || state.roundFinished || state.pendingTie || state.allFinished) return;
+
+  const nTotal = state.currentOptions.length;
+  const vCount = state.voters.length;
+  const maj = calcMajorityThreshold(vCount);
+  const halfTarget = calcHalfOptionTarget(nTotal);
+  const targetK = state.config.target;
+  const isShortfallRound = halfTarget < targetK;
+
+  const promotedSet = new Set(state.promotedInRound);
+  const remaining = state.currentOptions.filter(o => !promotedSet.has(o));
+  if (remaining.length === 0) {
+    concludeRound(state.promotedInRound.slice(), '所有選項均已晉級');
+    return;
+  }
+
+  state.roundSubstep++;
+  const { voteFlags, counts, subRankings, vpv } = computeVotesForRemaining(remaining);
+
+  // Special case A: Standard shortfall rule — right at substep 1 when 50% < targetK
+  // Wait: let's check user's rule carefully!
+  // "例如30進20時因爲再晉級50%時就剩下15個選項，因此如果下一輪不夠所需選項之總數量，便會立刻按照票數高低從30選20個"
+  // "如果20，21同票便要進入同票機制"
+  // In standard mode ('cutoff'): on initial tally (substep 1) if halfTarget < targetK, we check if 50% cutoff is insufficient for targetK -> immediately select top targetK from all currentOptions by votes!
+  // Wait: what if we run standard rollovers until >= halfTarget (e.g. 15) and THEN see that promoted < targetK?
+  // Look at the flowchart we built for the user:
+  // "已晉級選項達總選項 50%？ (是) -> 下一輪選項少於所需選項總數？ (是) -> 依本輪票數高低，從原選項選出所需總數 -> 最後入選名額是否出現同票？"
+  // Let's handle BOTH cleanly!
+  // Specifically:
+  // 1) Normal counting & rollover proceeds until promoted.length >= halfTarget (or no >50% -> top votes).
+  // 2) Once promoted.length >= halfTarget:
+  //    - If promoted.length === targetK -> DONE!
+  //    - If promoted.length < targetK:
+  //        * If shortfallMode === 'cutoff': IMMEDIATELY take the initial-round votes of all currentOptions (or current round full scores) and pick top targetK from all nTotal currentOptions! If boundary tie at K vs K+1 -> trigger tie-breaking!
+  //        * If shortfallMode === 'continue' (Demo 1): keep rolling over remaining options until promoted.length >= targetK (if last rollover pushes over targetK, take top remaining slots by votes; if boundary tie -> trigger tie-breaking!).
+
+  const overHalfIndices = [];
+  counts.forEach((c, i) => { if (c >= maj) overHalfIndices.push(i); });
+
+  let newlyPromoted = [];
+  let statusMap = {};
+  let badge = '';
+  let note = '';
+  let triggeredTie = null;
+  let immediateFinishWinners = null;
+
+  if (overHalfIndices.length > 0) {
+    // Some options achieved >50% of voters
+    if (state.config.shortfallMode === 'continue' && isShortfallRound && (state.promotedInRound.length + overHalfIndices.length > targetK)) {
+      // Demo 1 style: last rollover exceeded targetK -> select top (targetK - promoted) by vote count
+      const slotsLeft = targetK - state.promotedInRound.length;
+      const sorted = overHalfIndices.slice().sort((a, b) => counts[b] - counts[a]);
+      const cutoffScore = counts[sorted[slotsLeft - 1]];
+      const strictAbove = sorted.filter(i => counts[i] > cutoffScore);
+      const atBoundary = sorted.filter(i => counts[i] === cutoffScore);
+
+      if (strictAbove.length + atBoundary.length === slotsLeft) {
+        newlyPromoted = sorted.slice(0, slotsLeft).map(i => remaining[i]);
+        newlyPromoted.forEach(o => { statusMap[o] = 'winner'; });
+        badge = `達標補足 +${newlyPromoted.length}`;
+        note = `本步驟共 ${overHalfIndices.length} 項過半，超出剩餘 ${slotsLeft} 個名額；依票數高低取前 ${slotsLeft} 項補足 ${targetK} 項，無邊界同票。`;
+      } else {
+        // Boundary tie!
+        const confirmedNow = strictAbove.map(i => remaining[i]);
+        confirmedNow.forEach(o => { statusMap[o] = 'promoted'; });
+        atBoundary.forEach(i => { statusMap[remaining[i]] = 'tie'; });
+        newlyPromoted = confirmedNow;
+        badge = `邊界同票（待裁決）`;
+        note = `高於門檻票數者（${confirmedNow.length} 項）先行入選；第 ${state.promotedInRound.length + strictAbove.length + 1} 名起有 ${atBoundary.length} 項同獲 ${cutoffScore} 票，須爭奪最後 ${slotsLeft - strictAbove.length} 個名額，啟動同票機制。`;
+        triggeredTie = {
+          context: `第 ${state.currentRound} 輪第 ${state.roundSubstep} 步補足目標名額時，出現邊界同票（皆獲 ${cutoffScore} 票）`,
+          tiedOptions: atBoundary.map(i => remaining[i]),
+          slotsNeeded: slotsLeft - strictAbove.length,
+          confirmedBase: [...state.promotedInRound, ...confirmedNow],
+          isFinalDecision: true
+        };
+      }
+    } else {
+      // Normal promotion of all >50% options
+      newlyPromoted = overHalfIndices.map(i => remaining[i]);
+      newlyPromoted.forEach(o => { statusMap[o] = 'promoted'; });
+      badge = `過半晉級 +${newlyPromoted.length}`;
+      note = `共 ${newlyPromoted.length} 項得票逾 50%（≥ ${maj} 票）直接晉級：${newlyPromoted.join('、')}。`;
+    }
+  } else {
+    // NO option exceeded 50% of voters -> Pick highest-vote option(s)
+    const maxVote = Math.max(...counts);
+    const topIndices = [];
+    counts.forEach((c, i) => { if (c === maxVote) topIndices.push(i); });
+    const topOpts = topIndices.map(i => remaining[i]);
+
+    // Determine whether a tie among topOpts affects the final result
+    const totalAfterTop = state.promotedInRound.length + topOpts.length;
+    // Affects final result if:
+    // (a) We are deciding final winners (e.g. targetK slots left <= topOpts.length and topOpts.length > remaining slots to targetK, AND halfTarget <= targetK or totalAfterTop > targetK when remaining <= targetK+... )
+    // Specifically: if adding all topOpts would jump past targetK (when we are at final selection stage: halfTarget <= targetK OR remaining.length <= targetK * 2 and totalAfterTop > targetK? Wait!)
+    // Look at the user's exact rule:
+    // "若出現和票情況: 1. 下一輪投票選項不等於投票結果：所有和票選項將成為下一輪投票之選項; 2. 下一輪投票選項等於投票結果：動用和票機制"
+    // "並且若果所有選項並沒有超過當時人數一半，最高票者（們）就會勝出，如果影響最終結果，就需要經過同票機制。"
+    const remainingSlotsToTarget = targetK - state.promotedInRound.length;
+    const isFinalRoundCheck = (nTotal <= targetK * 2 && halfTarget <= targetK) || (state.promotedInRound.length + topOpts.length >= halfTarget && halfTarget <= targetK);
+
+    if (topOpts.length === 1) {
+      newlyPromoted = topOpts;
+      statusMap[topOpts[0]] = 'promoted';
+      badge = `無過半・最高票晉級 +1`;
+      note = `所有選項皆未逾 50%（最高 ${maxVote} 票），依規則由單一最高票「${topOpts[0]}」勝出／晉級。`;
+    } else if (isFinalRoundCheck && topOpts.length > remainingSlotsToTarget) {
+      // Tie affects final result!
+      topOpts.forEach(o => { statusMap[o] = 'tie'; });
+      badge = `最高票同票（啟動同票機制）`;
+      note = `無選項逾 50%，最高票（${maxVote} 票）出現 ${topOpts.length} 項同票（${topOpts.join('、')}），超出剩餘所需 ${remainingSlotsToTarget} 個最終名額，影響最終結果，啟動同票機制。`;
+      triggeredTie = {
+        context: `第 ${state.currentRound} 輪無選項過半，最高票（${maxVote} 票）共 ${topOpts.length} 項同票，影響最終 ${remainingSlotsToTarget} 個勝出名額`,
+        tiedOptions: topOpts,
+        slotsNeeded: remainingSlotsToTarget,
+        confirmedBase: state.promotedInRound.slice(),
+        isFinalDecision: true
+      };
+    } else {
+      // Does NOT affect final result (either exactly matches remainingSlotsToTarget, like Demo 2 Round 6 荷蘭/瑞典 2 spots = 2 tied, OR advancing to next round)
+      newlyPromoted = topOpts;
+      topOpts.forEach(o => { statusMap[o] = (totalAfterTop === targetK ? 'winner' : 'promoted'); });
+      badge = `無過半・最高票同進 +${topOpts.length}`;
+      note = `無選項逾 50%，最高票（${maxVote} 票）為：${topOpts.join('、')}。因不影響最終名額判定，全數勝出／晉級。`;
+    }
+  }
+
+  // Apply confirmed promotions
+  state.promotedInRound = [...state.promotedInRound, ...newlyPromoted];
+
+  // Record this substep log
+  const logEntry = {
+    id: `R${state.currentRound}-S${state.roundSubstep}`,
+    round: state.currentRound,
+    substep: state.roundSubstep,
+    label: state.roundSubstep === 1 ? `第 ${state.currentRound} 輪・初次計票` : `第 ${state.currentRound} 輪・第 ${state.roundSubstep - 1} 次選票順延`,
+    badge,
+    options: remaining.slice(),
+    voters: state.voters.slice(),
+    rankings: subRankings,
+    voteFlags,
+    counts,
+    vpv,
+    maj,
+    newlyPromoted: newlyPromoted.slice(),
+    cumPromoted: state.promotedInRound.slice(),
+    statusMap,
+    note
+  };
+  state.stepLogs.push(logEntry);
+  state.selectedLogIdx = state.stepLogs.length - 1;
+
+  if (triggeredTie) {
+    activateTieBreaker(triggeredTie);
+    renderCountingPanel();
+    return;
+  }
+
+  // Check if round threshold reached!
+  if (state.promotedInRound.length >= halfTarget) {
+    if (state.promotedInRound.length === targetK) {
+      // Exact match to final target!
+      finalizeEntireVoting(state.promotedInRound.slice(), `第 ${state.currentRound} 輪結束後晉級選項剛好等於所需總數（${targetK} 項），完成投票。`);
+    } else if (state.promotedInRound.length < targetK) {
+      // Reached >= 50% of options, YET fewer than targetK (e.g. 30 choose 20 -> 15 < 20)
+      if (state.config.shortfallMode === 'cutoff') {
+        // Immediate cutoff from ALL currentOptions based on Round's initial vote counts!
+        executeShortfallCutoff();
+      } else {
+        // Demo 1 mode: keep rolling over until >= targetK!
+        logEntry.note += `（已達總選項 50% 門檻 ${halfTarget} 項，但少於所需總數 ${targetK} 項，依 Demo 1 順延模式續行選票順延）`;
+      }
+    } else {
+      // promotedInRound.length > targetK -> proceed to next round!
+      concludeRound(state.promotedInRound.slice(), `累計 ${state.promotedInRound.length} 項已達總選項 50%（${halfTarget} 項），且多於最終所需 ${targetK} 項，進入下一輪。`);
+    }
+  }
+
+  renderCountingPanel();
+}
+
+function executeShortfallCutoff() {
+  // User's rule: "例如30進20時因爲再晉級50%時就剩下15個選項，因此如果下一輪不夠所需選項之總數量，便會立刻按照票數高低從30選20個；如果20，21同票便要進入同票機制"
+  const nTotal = state.currentOptions.length;
+  const targetK = state.config.target;
+  const { voteFlags, counts, subRankings, vpv } = computeVotesForRemaining(state.currentOptions);
+
+  const indexed = state.currentOptions.map((opt, idx) => ({ opt, idx, votes: counts[idx] }));
+  indexed.sort((a, b) => b.votes - a.votes);
+
+  const boundaryVotes = indexed[targetK - 1].votes;
+  const strictAbove = indexed.filter(x => x.votes > boundaryVotes);
+  const atBoundary = indexed.filter(x => x.votes === boundaryVotes);
+  const below = indexed.filter(x => x.votes < boundaryVotes);
+
+  const statusMap = {};
+  strictAbove.forEach(x => { statusMap[x.opt] = 'winner'; });
+  below.forEach(x => { statusMap[x.opt] = 'eliminated'; });
+
+  if (strictAbove.length + atBoundary.length === targetK) {
+    // Clean cutoff, no boundary tie!
+    atBoundary.forEach(x => { statusMap[x.opt] = 'winner'; });
+    const winners = indexed.slice(0, targetK).map(x => x.opt);
+    state.stepLogs.push({
+      id: `R${state.currentRound}-CUTOFF`,
+      round: state.currentRound,
+      substep: state.roundSubstep + 1,
+      label: `第 ${state.currentRound} 輪・不足總數即時截選`,
+      badge: `即時選出 ${targetK} 項`,
+      options: state.currentOptions.slice(),
+      voters: state.voters.slice(),
+      rankings: subRankings,
+      voteFlags,
+      counts,
+      vpv,
+      maj: calcMajorityThreshold(state.voters.length),
+      newlyPromoted: winners.slice(),
+      cumPromoted: winners.slice(),
+      statusMap,
+      note: `因 50% 晉級數（${state.promotedInRound.length} 項）少於所需總數 ${targetK} 項，依規則即時按本輪原始得票高低從 ${nTotal} 項中選出前 ${targetK} 項，邊界無同票，直接完成表決。`
+    });
+    state.selectedLogIdx = state.stepLogs.length - 1;
+    finalizeEntireVoting(winners, `因下一輪選項少於所需總數（${targetK} 項），即時依票數高低從 ${nTotal} 項中選出前 ${targetK} 項完成投票。`);
+  } else {
+    // Boundary tie at K vs K+1!
+    atBoundary.forEach(x => { statusMap[x.opt] = 'tie'; });
+    const slotsLeft = targetK - strictAbove.length;
+    const confirmedOpts = strictAbove.map(x => x.opt);
+    const tiedOpts = atBoundary.map(x => x.opt);
+    state.stepLogs.push({
+      id: `R${state.currentRound}-CUTOFF-TIE`,
+      round: state.currentRound,
+      substep: state.roundSubstep + 1,
+      label: `第 ${state.currentRound} 輪・即時截選（邊界同票）`,
+      badge: `第 ${targetK} 名邊界同票`,
+      options: state.currentOptions.slice(),
+      voters: state.voters.slice(),
+      rankings: subRankings,
+      voteFlags,
+      counts,
+      vpv,
+      maj: calcMajorityThreshold(state.voters.length),
+      newlyPromoted: confirmedOpts,
+      cumPromoted: confirmedOpts,
+      statusMap,
+      note: `因 50% 晉級數少於目標 ${targetK} 項，改為依本輪得票高低截選。高於 ${boundaryVotes} 票者（${confirmedOpts.length} 項）確定入選；邊界共 ${tiedOpts.length} 項同獲 ${boundaryVotes} 票（${tiedOpts.join('、')}），須爭奪最後 ${slotsLeft} 個名額，啟動同票機制。`
+    });
+    state.selectedLogIdx = state.stepLogs.length - 1;
+    activateTieBreaker({
+      context: `第 ${state.currentRound} 輪「不足所需總數即時截選（${nTotal} 選 ${targetK}）」時，第 ${strictAbove.length + 1} 名起共 ${tiedOpts.length} 項同獲 ${boundaryVotes} 票，爭奪最後 ${slotsLeft} 個入選名額`,
+      tiedOptions: tiedOpts,
+      slotsNeeded: slotsLeft,
+      confirmedBase: confirmedOpts,
+      isFinalDecision: true
+    });
+  }
+}
+
+function concludeRound(promotedList, note) {
+  const promotedSet = new Set(promotedList);
+  const eliminated = state.currentOptions.filter(o => !promotedSet.has(o));
+  state.roundsSummary.push({
+    round: state.currentRound,
+    startCount: state.currentOptions.length,
+    votesPerVoter: calcVotesPerVoter(state.currentOptions.length),
+    majorityThreshold: calcMajorityThreshold(state.voters.length),
+    substeps: state.roundSubstep,
+    promoted: promotedList.slice(),
+    eliminated,
+    note
+  });
+  state.roundFinished = true;
+}
+
+function finalizeEntireVoting(winners, note) {
+  const winSet = new Set(winners);
+  const eliminated = state.currentOptions.filter(o => !winSet.has(o));
+  state.roundsSummary.push({
+    round: state.currentRound,
+    startCount: state.currentOptions.length,
+    votesPerVoter: calcVotesPerVoter(state.currentOptions.length),
+    majorityThreshold: calcMajorityThreshold(state.voters.length),
+    substeps: state.roundSubstep,
+    promoted: winners.slice(),
+    eliminated,
+    note
+  });
+  state.promotedInRound = winners.slice();
+  state.finalWinners = winners.slice();
+  state.roundFinished = true;
+  state.allFinished = true;
+  document.getElementById('tab-report').classList.add('done');
+  showToast('投票表決已完成！可檢視最終結果與會議記錄');
+}
+
+function finishCurrentRound() {
+  let guard = 0;
+  while (state.roundActive && !state.roundFinished && !state.pendingTie && !state.allFinished && guard < 200) {
+    runNextSubstep();
+    guard++;
+  }
+}
+
+function prepareNextRoundInput() {
+  if (!state.roundFinished || state.allFinished) return;
+  state.currentRound++;
+  state.currentOptions = state.promotedInRound.slice();
+  state.currentRankings = Array.from({ length: state.currentOptions.length }, () => new Array(state.voters.length).fill(''));
+  state.roundActive = false;
+  state.roundFinished = false;
+  state.promotedInRound = [];
+  state.roundSubstep = 0;
+
+  // If Demo 2 preset has exact real data for this round, auto-load it for convenience!
+  if (state.config.activePresetKey === 'demo2' && EMBEDDED_PRESETS.demo2.rounds[String(state.currentRound)]) {
+    loadDemo2CurrentRound();
+    showToast(`已進入第 ${state.currentRound} 輪並自動套用 Demo 2 真實排序`);
+  } else {
+    renderInputPanel();
+    showToast(`已進入第 ${state.currentRound} 輪（剩餘 ${state.currentOptions.length} 項），請錄入新排序或沿用上輪順序`);
+  }
+  switchTab('input');
+}
+
+function autoRunAllRounds() {
+  let guard = 0;
+  while (!state.allFinished && !state.pendingTie && guard < 30) {
+    finishCurrentRound();
+    if (state.allFinished || state.pendingTie) break;
+    // Advance to next round automatically
+    state.currentRound++;
+    state.currentOptions = state.promotedInRound.slice();
+    state.promotedInRound = [];
+    state.roundFinished = false;
+    state.roundSubstep = 0;
+
+    if (state.config.activePresetKey === 'demo2' && EMBEDDED_PRESETS.demo2.rounds[String(state.currentRound)]) {
+      const rd = EMBEDDED_PRESETS.demo2.rounds[String(state.currentRound)];
+      const map = {};
+      rd.options.forEach((opt, i) => { map[opt] = rd.ranks[i]; });
+      state.currentRankings = state.currentOptions.map((opt, oi) => map[opt] ? map[opt].slice() : Array(state.voters.length).fill(oi + 1));
+    } else {
+      // Carry over relative preference order from previous round
+      const n = state.currentOptions.length;
+      const vCount = state.voters.length;
+      const newRanks = Array.from({ length: n }, () => new Array(vCount).fill(0));
+      for (let vi = 0; vi < vCount; vi++) {
+        const items = state.currentOptions.map((opt, oi) => ({
+          oi,
+          prevRank: state.prevRoundRankingsMap[opt] ? state.prevRoundRankingsMap[opt][vi] : oi + 1
+        }));
+        items.sort((a, b) => a.prevRank - b.prevRank);
+        items.forEach((it, idx) => { newRanks[it.oi][vi] = idx + 1; });
+      }
+      state.currentRankings = newRanks;
+    }
+    state.prevRoundRankingsMap = {};
+    state.currentOptions.forEach((opt, oi) => {
+      state.prevRoundRankingsMap[opt] = state.currentRankings[oi].slice();
+    });
+    state.roundActive = true;
+    guard++;
+  }
+  renderCountingPanel();
+}
+
+function renderCountingPanel() {
+  const n = state.currentOptions.length;
+  const v = state.voters.length;
+  const vpv = calcVotesPerVoter(n);
+  const maj = calcMajorityThreshold(v);
+  const half = calcHalfOptionTarget(n);
+
+  document.getElementById('count-title').textContent = `第 ${state.currentRound} 輪計票與選票順延（${state.config.title}）`;
+  document.getElementById('count-kpi').innerHTML = `
+    <div class="kpi"><div class="k-label">當前輪次</div><div class="k-val">第 ${state.currentRound} 輪</div></div>
+    <div class="kpi"><div class="k-label">本輪起始選項</div><div class="k-val">${n} 項</div></div>
+    <div class="kpi"><div class="k-label">每人票數 / 過半門檻</div><div class="k-val">${vpv} 票 / ≥${maj}</div></div>
+    <div class="kpi k-green"><div class="k-label">本輪累計晉級</div><div class="k-val">${state.promotedInRound.length} 項</div></div>
+    <div class="kpi"><div class="k-label">本輪 50% / 最終目標</div><div class="k-val">${half} / ${state.config.target} 項</div></div>
+  `;
+
+  // Control button visibility
+  const canStep = state.roundActive && !state.roundFinished && !state.pendingTie && !state.allFinished;
+  document.getElementById('btn-next-step').style.display = canStep ? 'inline-flex' : 'none';
+  document.getElementById('btn-finish-round').style.display = canStep ? 'inline-flex' : 'none';
+  document.getElementById('btn-auto-all').style.display = (!state.allFinished && !state.pendingTie && state.stepLogs.length > 0) ? 'inline-flex' : 'none';
+  document.getElementById('btn-start-next-round').style.display = (state.roundFinished && !state.allFinished && !state.pendingTie) ? 'inline-flex' : 'none';
+  document.getElementById('btn-go-tie').style.display = state.pendingTie ? 'inline-flex' : 'none';
+  document.getElementById('btn-go-report').style.display = state.allFinished ? 'inline-flex' : 'none';
+
+  // Status banner
+  const sb = document.getElementById('count-status-banner');
+  if (state.pendingTie) {
+    sb.innerHTML = `<div class="banner banner-warn">
+      <div><strong>觸發同票機制：</strong>${escapeHtml(state.pendingTie.context)}</div>
+      <button class="btn btn-amber btn-sm" onclick="switchTab('tie')">立即前往處理同票 →</button>
+    </div>`;
+  } else if (state.allFinished) {
+    sb.innerHTML = `<div class="banner banner-ok">
+      <div><strong>表決已完成！</strong>最終勝出（${state.finalWinners.length} 項）：<strong>${escapeHtml(state.finalWinners.join('、'))}</strong></div>
+      <button class="btn btn-green btn-sm" onclick="switchTab('report')">前往匯出 Excel 與會議記錄 →</button>
+    </div>`;
+  } else if (state.roundFinished) {
+    sb.innerHTML = `<div class="banner banner-info">
+      <div><strong>第 ${state.currentRound} 輪結束：</strong>共 ${state.promotedInRound.length} 項晉級（多於最終所需 ${state.config.target} 項），請進入第 ${state.currentRound + 1} 輪重排優先順序。</div>
+      <button class="btn btn-primary btn-sm" onclick="prepareNextRoundInput()">進入第 ${state.currentRound + 1} 輪 →</button>
+    </div>`;
+  } else {
+    sb.innerHTML = `<div class="banner banner-info">本輪計票進行中：已晉級 ${state.promotedInRound.length} 項（門檻 ${half} 項），可按「執行下一步計票／順延」觀察選票順延軌跡。</div>`;
+  }
+
+  // Render step log list
+  const logWrap = document.getElementById('step-log-list');
+  logWrap.innerHTML = state.stepLogs.map((lg, idx) => `
+    <div class="log-item ${idx === state.selectedLogIdx ? 'active' : ''}" onclick="selectStepLog(${idx})">
+      <div class="li-head">
+        <span>${escapeHtml(lg.label)}</span>
+        <span class="badge ${lg.badge.includes('同票') ? 'badge-amber' : 'badge-green'}">${escapeHtml(lg.badge)}</span>
+      </div>
+      <div class="li-body">${escapeHtml(lg.note)}</div>
+    </div>
+  `).join('');
+
+  renderSelectedMatrix();
+}
+
+function selectStepLog(idx) {
+  state.selectedLogIdx = idx;
+  renderCountingPanel();
+}
+
+function renderSelectedMatrix() {
+  const lg = state.stepLogs[state.selectedLogIdx];
+  const tbl = document.getElementById('counting-matrix-table');
+  if (!lg) {
+    tbl.innerHTML = '<tbody><tr><td style="padding:24px; color:var(--muted);">尚未執行計票。</td></tr></tbody>';
+    return;
+  }
+
+  document.getElementById('matrix-view-heading').textContent = `${lg.label}（檢視 ${lg.options.length} 項）`;
+  document.getElementById('matrix-view-badges').innerHTML = `
+    <span class="badge badge-blue">每人 ${lg.vpv} 票</span>
+    <span class="badge badge-purple">過半門檻 ≥ ${lg.maj} 票</span>
+    <span class="badge badge-green">本步累計晉級 ${lg.cumPromoted.length} 項</span>
+  `;
+
+  let html = '<thead><tr><th class="sticky-col">選項</th>';
+  lg.voters.forEach(v => { html += `<th>${escapeHtml(v)}</th>`; });
+  html += '<th>得票數</th><th>本步判定</th></tr></thead><tbody>';
+
+  lg.options.forEach((opt, oi) => {
+    const st = lg.statusMap[opt] || '';
+    const rowCls = st === 'winner' ? 'row-winner' : st === 'promoted' ? 'row-promoted' : st === 'tie' ? 'row-tie' : st === 'eliminated' ? 'row-eliminated' : '';
+    let stBadge = '<span style="color:var(--muted);">待定／順延</span>';
+    if (st === 'winner') stBadge = '<span class="badge badge-green">最終入選</span>';
+    else if (st === 'promoted') stBadge = '<span class="badge badge-green">晉級</span>';
+    else if (st === 'tie') stBadge = '<span class="badge badge-amber">邊界同票</span>';
+    else if (st === 'eliminated') stBadge = '<span class="badge badge-red">淘汰</span>';
+
+    html += `<tr class="${rowCls}"><td class="sticky-col">${escapeHtml(opt)}</td>`;
+    lg.voters.forEach((_, vi) => {
+      const voted = lg.voteFlags[oi][vi];
+      const rk = lg.rankings[oi][vi];
+      if (voted) {
+        html += `<td class="cell-vote" title="排序第 ${rk}">V</td>`;
+      } else {
+        html += `<td style="color:var(--muted);">${rk}</td>`;
+      }
+    });
+    html += `<td><strong>${lg.counts[oi]}</strong></td><td>${stBadge}</td></tr>`;
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+// =========================================================================
+// Step 4: Tie-Breaking Mechanism (余穎浠動議 + 最高票勝出 + 主席票)
+// =========================================================================
+function activateTieBreaker(tieInfo) {
+  const nTied = tieInfo.tiedOptions.length;
+  state.pendingTie = {
+    ...tieInfo,
+    speakersDone: new Set(),
+    rankings: Array.from({ length: nTied }, () => new Array(state.voters.length).fill('')),
+    lastTieCounts: null,
+    chairCandidates: [],
+    chairSelected: new Set(),
+    chairSlotsNeeded: 0,
+    autoConfirmedFromTie: []
+  };
+  document.getElementById('tab-tie').classList.add('alert');
+  resetTimer();
+  showToast('觸發同票機制！請切換至「4. 同票機制處理」');
+}
+
+function renderTiePanel() {
+  const pt = state.pendingTie;
+  document.getElementById('tie-empty-card').style.display = pt ? 'none' : 'block';
+  document.getElementById('tie-active-wrap').style.display = pt ? 'block' : 'none';
+  if (!pt) return;
+
+  const nTied = pt.tiedOptions.length;
+  const vpv = calcVotesPerVoter(nTied);
+
+  document.getElementById('tie-context-banner').innerHTML = `
+    <div>
+      <strong>同票觸發原因：</strong>${escapeHtml(pt.context)}<br>
+      <strong>同票選項（${nTied} 項）：</strong>${escapeHtml(pt.tiedOptions.join('、'))} ｜ <strong>須選出名額：</strong>${pt.slotsNeeded} 項
+    </div>
+  `;
+
+  // Speakers chips
+  const spWrap = document.getElementById('tie-speakers');
+  spWrap.innerHTML = state.voters.map(v => {
+    const done = pt.speakersDone.has(v);
+    return `<div class="speaker-chip ${done ? 'spoken' : ''}" onclick="toggleSpeaker('${escapeJs(v)}')">
+      ${done ? '✓' : '○'} ${escapeHtml(v)}
+    </div>`;
+  }).join('');
+
+  // Tie voting table
+  document.getElementById('tie-vote-title').textContent = `步驟二：同票選項單獨優先排序投票（${nTied} 選 ${pt.slotsNeeded}）`;
+  document.getElementById('tie-vote-sub').textContent = `每位成員為 ${nTied} 個同票選項重排 1–${nTied} 次序，獲配 ${vpv} 票（33%，最少 1 票，每項上限 1 票），由最高票直接勝出。`;
+
+  const tbl = document.getElementById('tie-ranking-table');
+  let html = '<thead><tr><th class="sticky-col">同票選項</th>';
+  state.voters.forEach(v => { html += `<th>${escapeHtml(v)}</th>`; });
+  if (pt.lastTieCounts) html += '<th>重投得票</th>';
+  html += '</tr></thead><tbody>';
+
+  pt.tiedOptions.forEach((opt, oi) => {
+    html += `<tr><td class="sticky-col">${escapeHtml(opt)}</td>`;
+    state.voters.forEach((_, vi) => {
+      const val = pt.rankings[oi][vi] ?? '';
+      html += `<td><input type="number" class="rank-input" min="1" max="${nTied}" value="${val}" oninput="onTieRankInput(${oi}, ${vi}, this.value)"></td>`;
+    });
+    if (pt.lastTieCounts) {
+      html += `<td><strong>${pt.lastTieCounts[oi]}</strong></td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  tbl.innerHTML = html;
+
+  // Chair card
+  const chairCard = document.getElementById('tie-chair-card');
+  if (pt.chairCandidates.length > 0) {
+    chairCard.style.display = 'block';
+    document.getElementById('chair-sub').textContent = `經重投後以下 ${pt.chairCandidates.length} 項仍同票，請會議主席動用主席票選出最後 ${pt.chairSlotsNeeded} 項：`;
+    document.getElementById('chair-options-list').innerHTML = pt.chairCandidates.map(opt => {
+      const sel = pt.chairSelected.has(opt);
+      return `<div class="chair-card ${sel ? 'selected' : ''}" onclick="toggleChairChoice('${escapeJs(opt)}')">
+        ${sel ? '★ ' : ''}${escapeHtml(opt)}
+      </div>`;
+    }).join('');
+  } else {
+    chairCard.style.display = 'none';
+  }
+}
+
+function toggleSpeaker(name) {
+  const pt = state.pendingTie;
+  if (!pt) return;
+  if (pt.speakersDone.has(name)) pt.speakersDone.delete(name);
+  else pt.speakersDone.add(name);
+  document.getElementById('timer-speaker-label').textContent = `目前計時對象：${name}`;
+  resetTimer();
+  renderTiePanel();
+}
+
+function updateTimerDisplay() {
+  const m = String(Math.floor(timerSec / 60)).padStart(2, '0');
+  const s = String(timerSec % 60).padStart(2, '0');
+  const el = document.getElementById('timer-display');
+  el.textContent = `${m}:${s}`;
+  el.classList.toggle('urgent', timerSec <= 15);
+}
+function startTimer() {
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    if (timerSec > 0) {
+      timerSec--;
+      updateTimerDisplay();
+    } else {
+      pauseTimer();
+      showToast('2 分鐘發言時間結束！');
+    }
+  }, 1000);
+}
+function pauseTimer() { clearInterval(timerInterval); timerInterval = null; }
+function resetTimer() { pauseTimer(); timerSec = 120; updateTimerDisplay(); }
+
+function onTieRankInput(oi, vi, val) {
+  if (!state.pendingTie) return;
+  state.pendingTie.rankings[oi][vi] = val === '' ? '' : parseInt(val, 10);
+}
+
+function randomizeTieRankings() {
+  const pt = state.pendingTie;
+  if (!pt) return;
+  pt.rankings = generateRandomRankings(pt.tiedOptions.length, state.voters.length);
+  renderTiePanel();
+  showToast('已隨機填入同票選項重排次序');
+}
+
+function evaluateTieVote() {
+  const pt = state.pendingTie;
+  if (!pt) return;
+  const n = pt.tiedOptions.length;
+  const vCount = state.voters.length;
+
+  // Validate 1..n unique per voter
+  const errs = [];
+  for (let vi = 0; vi < vCount; vi++) {
+    const seen = new Set();
+    let ok = true;
+    for (let oi = 0; oi < n; oi++) {
+      const val = pt.rankings[oi][vi];
+      if (!Number.isInteger(val) || val < 1 || val > n || seen.has(val)) ok = false;
+      seen.add(val);
+    }
+    if (!ok) errs.push(state.voters[vi]);
+  }
+  const vb = document.getElementById('tie-validation-banner');
+  if (errs.length > 0) {
+    vb.innerHTML = `<div class="banner banner-err">以下成員之同票重排次序未填妥或有重複：${errs.join('、')}</div>`;
+    return;
+  }
+  vb.innerHTML = '';
+
+  const vpv = calcVotesPerVoter(n);
+  const counts = new Array(n).fill(0);
+  for (let vi = 0; vi < vCount; vi++) {
+    const ranked = pt.tiedOptions.map((_, oi) => ({ oi, rk: pt.rankings[oi][vi] }));
+    ranked.sort((a, b) => a.rk - b.rk);
+    for (let k = 0; k < Math.min(vpv, n); k++) counts[ranked[k].oi]++;
+  }
+  pt.lastTieCounts = counts;
+
+  // Highest vote wins under tie-breaker!
+  const indexed = pt.tiedOptions.map((opt, oi) => ({ opt, votes: counts[oi] }));
+  indexed.sort((a, b) => b.votes - a.votes);
+
+  const cutoffVote = indexed[pt.slotsNeeded - 1].votes;
+  const strictAbove = indexed.filter(x => x.votes > cutoffVote);
+  const atBoundary = indexed.filter(x => x.votes === cutoffVote);
+
+  const resArea = document.getElementById('tie-result-area');
+  const tallyStr = indexed.map(x => `${x.opt}（${x.votes} 票）`).join('、');
+
+  if (strictAbove.length + atBoundary.length === pt.slotsNeeded) {
+    // Clean tie resolution by highest vote!
+    const tieWinners = indexed.slice(0, pt.slotsNeeded).map(x => x.opt);
+    pt.chairCandidates = [];
+    completeTieBreak(tieWinners, false, [], tallyStr);
+  } else {
+    // Still tied! Invoke Chair casting vote
+    pt.autoConfirmedFromTie = strictAbove.map(x => x.opt);
+    pt.chairCandidates = atBoundary.map(x => x.opt);
+    pt.chairSlotsNeeded = pt.slotsNeeded - strictAbove.length;
+    pt.chairSelected = new Set();
+    resArea.innerHTML = `<div class="banner banner-warn">
+      <div><strong>同票重投結果：</strong>${escapeHtml(tallyStr)}。<br>
+      ${pt.autoConfirmedFromTie.length ? `已確認勝出：${escapeHtml(pt.autoConfirmedFromTie.join('、'))}；` : ''}仍有 ${pt.chairCandidates.length} 項同獲 ${cutoffVote} 票，請於下方由會議主席動用主席票裁決最後 ${pt.chairSlotsNeeded} 項。</div>
+    </div>`;
+    renderTiePanel();
+  }
+}
+
+function toggleChairChoice(opt) {
+  const pt = state.pendingTie;
+  if (!pt) return;
+  if (pt.chairSelected.has(opt)) {
+    pt.chairSelected.delete(opt);
+  } else {
+    if (pt.chairSelected.size >= pt.chairSlotsNeeded) {
+      showToast(`主席票僅須選出 ${pt.chairSlotsNeeded} 項，請先取消已選項目`);
+      return;
+    }
+    pt.chairSelected.add(opt);
+  }
+  renderTiePanel();
+}
+
+function confirmChairDecision() {
+  const pt = state.pendingTie;
+  if (!pt) return;
+  if (pt.chairSelected.size !== pt.chairSlotsNeeded) {
+    alert(`請會議主席點選剛好 ${pt.chairSlotsNeeded} 個勝出選項。`);
+    return;
+  }
+  const chosen = Array.from(pt.chairSelected);
+  const tieWinners = [...pt.autoConfirmedFromTie, ...chosen];
+  const tallyStr = pt.tiedOptions.map((o, i) => `${o}（${pt.lastTieCounts[i]} 票）`).join('、');
+  completeTieBreak(tieWinners, true, chosen, tallyStr);
+}
+
+function completeTieBreak(tieWinners, chairUsed, chairSelected, tallyStr) {
+  const pt = state.pendingTie;
+  pauseTimer();
+
+  state.tieHistory.push({
+    round: state.currentRound,
+    context: pt.context,
+    tiedOptions: pt.tiedOptions.slice(),
+    slotsNeeded: pt.slotsNeeded,
+    speakers: Array.from(pt.speakersDone),
+    tallySummary: tallyStr,
+    chairUsed,
+    chairSelected: chairSelected.slice(),
+    winners: tieWinners.slice()
+  });
+
+  const combined = [...pt.confirmedBase, ...tieWinners];
+  state.pendingTie = null;
+  document.getElementById('tab-tie').classList.remove('alert');
+
+  const note = chairUsed
+    ? `經同票重投（${tallyStr}）後再次同票，由會議主席動用主席票裁決「${chairSelected.join('、')}」勝出；最終名單為：${combined.join('、')}。`
+    : `經同票機制重投（${tallyStr}），由最高票「${tieWinners.join('、')}」勝出；最終名單為：${combined.join('、')}。`;
+
+  finalizeEntireVoting(combined, note);
+  renderCountingPanel();
+  switchTab('report');
+}
+
+// =========================================================================
+// Step 5: Report, Meeting Minutes & Excel Export
+// =========================================================================
+function renderReport() {
+  const isMock = document.getElementById('chk-minutes-mock').checked;
+  state.config.isMock = isMock;
+
+  document.getElementById('report-kpi').innerHTML = `
+    <div class="kpi"><div class="k-label">參與人數</div><div class="k-val">${state.voters.length} 人</div></div>
+    <div class="kpi"><div class="k-label">初始選項數</div><div class="k-val">${state.initialOptions.length} 項</div></div>
+    <div class="kpi"><div class="k-label">總投票輪數</div><div class="k-val">${state.roundsSummary.length} 輪</div></div>
+    <div class="kpi"><div class="k-label">同票機制啟動次數</div><div class="k-val">${state.tieHistory.length} 次</div></div>
+    <div class="kpi k-green"><div class="k-label">最終選出選項</div><div class="k-val">${state.finalWinners.length} / ${state.config.target} 項</div></div>
+  `;
+
+  const wb = document.getElementById('report-winners-banner');
+  if (state.allFinished) {
+    wb.innerHTML = `<div class="banner banner-ok">
+      <div><strong>最終勝出名單（共 ${state.finalWinners.length} 項）：</strong>${escapeHtml(state.finalWinners.join('、'))}</div>
+    </div>`;
+  } else {
+    wb.innerHTML = `<div class="banner banner-warn">表決尚未完成，以下為目前累計之階段性紀錄。</div>`;
+  }
+
+  // Summary table
+  const tbl = document.getElementById('report-summary-table');
+  let html = '<thead><tr><th>輪次</th><th>起始選項數</th><th>每人票數</th><th>過半門檻</th><th>計票／順延次數</th><th>晉級／勝出選項</th><th>本輪淘汰選項</th></tr></thead><tbody>';
+  if (state.roundsSummary.length === 0) {
+    html += '<tr><td colspan="7" style="padding:18px; color:var(--muted);">尚無已完成之輪次紀錄</td></tr>';
+  } else {
+    state.roundsSummary.forEach(r => {
+      html += `<tr>
+        <td><strong>第 ${r.round} 輪</strong></td>
+        <td>${r.startCount} 項</td>
+        <td>${r.votesPerVoter} 票</td>
+        <td>≥ ${r.majorityThreshold} 票</td>
+        <td>${r.substeps} 次</td>
+        <td style="text-align:left; white-space:normal; min-width:200px;"><strong style="color:var(--green);">（${r.promoted.length} 項）</strong>${escapeHtml(r.promoted.join('、'))}</td>
+        <td style="text-align:left; white-space:normal; min-width:180px; color:var(--red);">（${r.eliminated.length} 項）${escapeHtml(r.eliminated.join('、') || '無')}</td>
+      </tr>`;
+    });
+  }
+  html += '</tbody>';
+  tbl.innerHTML = html;
+
+  document.getElementById('minutes-output').textContent = buildMeetingMinutesText();
+}
+
+function buildMeetingMinutesText() {
+  const cfg = state.config;
+  const maj = calcMajorityThreshold(state.voters.length);
+  const vpv1 = calcVotesPerVoter(state.initialOptions.length || 1);
+  const kindLabel = cfg.isMock ? '模擬投票' : '正式投票表決';
+
+  const lines = [];
+  lines.push(`【${kindLabel}紀錄】${cfg.title}`);
+  lines.push('');
+  if (cfg.isMock) {
+    lines.push(`為確保各與會者熟悉「優先排序制」及「同票機制」之操作流程，會議即席進行一次不具實質效力之模擬投票，藉以驗證配票、選票順延及邊界截選規則。`);
+  } else {
+    lines.push(`會議依據通過之「優先排序制」及「同票機制」議事規則，就「${cfg.title}」進行正式表決。`);
+  }
+  lines.push('');
+  lines.push('一、基本設定');
+  lines.push(`- 參與投票人數：${state.voters.length} 人（${state.voters.join('、')}）；過半數門檻為逾 50%（即 ≥ ${maj} 票）。`);
+  lines.push(`- 選項總數與目標：共 ${state.initialOptions.length} 項，目標選出最終 ${cfg.target} 項。`);
+  lines.push(`- 票數分配原則：每輪每位與會者獲配當前選項數 33% 之票數（首輪每人 ${vpv1} 票），依優先排序分配，每項上限 1 票。`);
+  lines.push('');
+  lines.push('二、各輪投票及計票過程');
+  if (state.roundsSummary.length === 0) {
+    lines.push('- （表決尚未完成）');
+  } else {
+    state.roundsSummary.forEach(r => {
+      const isLast = state.allFinished && r.round === state.roundsSummary[state.roundsSummary.length - 1].round;
+      lines.push(`- 第 ${r.round} 輪（${r.startCount} 項，每人 ${r.votesPerVoter} 票，經 ${r.substeps} 次計票／順延）：`);
+      lines.push(`  • ${isLast ? '最終勝出' : '晉級下一輪'}（${r.promoted.length} 項）：${r.promoted.join('、')}`);
+      lines.push(`  • 本輪淘汰（${r.eliminated.length} 項）：${r.eliminated.length ? r.eliminated.join('、') : '無'}`);
+      if (r.note) lines.push(`  • 備註：${r.note}`);
+    });
+  }
+
+  if (state.tieHistory.length > 0) {
+    lines.push('');
+    lines.push('三、同票機制處理紀錄');
+    state.tieHistory.forEach((t, idx) => {
+      lines.push(`- 同票事件 ${idx + 1}（第 ${t.round} 輪）：${t.context}。`);
+      lines.push(`  • 參與同票選項：${t.tiedOptions.join('、')}（須選出 ${t.slotsNeeded} 項）。`);
+      lines.push(`  • 發言程序：依規則提供每位成員 2 分鐘發言時間${t.speakers.length ? `（已紀錄發言成員：${t.speakers.join('、')}）` : ''}。`);
+      lines.push(`  • 同票重投結果：${t.tallySummary}。`);
+      if (t.chairUsed) {
+        lines.push(`  • 主席票裁決：因重投後再次出現同票，由會議主席動用主席票裁決「${t.chairSelected.join('、')}」勝出。`);
+      } else {
+        lines.push(`  • 判定結果：依同票機制由最高票「${t.winners.join('、')}」直接勝出。`);
+      }
+    });
+  }
+
+  lines.push('');
+  lines.push(`${state.tieHistory.length > 0 ? '四' : '三'}、表決結果與備註`);
+  if (state.allFinished) {
+    lines.push(`- 經上述共 ${state.roundsSummary.length} 輪程序，最終選出 ${state.finalWinners.length} 項為：${state.finalWinners.join('、')}。`);
+    if (cfg.isMock) {
+      lines.push('- 備註：本次模擬投票僅作議事規則演練之用，不具實質決議效力。經測試，整體流程清晰可行。');
+    }
+  } else {
+    lines.push('- 表決程序尚未結束。');
+  }
+  return lines.join('\n');
+}
+
+function copyMinutesText() {
+  const txt = buildMeetingMinutesText();
+  navigator.clipboard.writeText(txt).then(() => {
+    showToast('已複製正式會議記錄草稿至剪貼簿');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+    showToast('已複製正式會議記錄草稿');
+  });
+}
+
+function exportExcelReport() {
+  if (typeof XLSX === 'undefined') {
+    const csv = '\uFEFF' + buildMeetingMinutesText();
+    downloadBlob(csv, `${state.config.title}_會議記錄.txt`, 'text/plain;charset=utf-8;');
+    showToast('目前為離線狀態（未載入 Excel 元件），已改為下載純文字報表');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: 總覽與會議記錄
+  const s1 = [
+    ['會議優先排序制投票表決報表'],
+    ['議案主題', state.config.title],
+    ['表決性質', state.config.isMock ? '模擬投票（不具實質效力）' : '正式投票'],
+    ['參與人數', state.voters.length],
+    ['投票成員', state.voters.join('、')],
+    ['初始選項總數', state.initialOptions.length],
+    ['最終目標選出數', state.config.target],
+    ['最終勝出名單', state.finalWinners.join('、')],
+    [''],
+    ['會議記錄草稿'],
+    ...buildMeetingMinutesText().split('\n').map(l => [l])
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s1), '總覽與會議記錄');
+
+  // Sheet 2: 各輪摘要
+  const s2 = [['輪次', '起始選項數', '每人票數', '過半門檻', '計票順延次數', '晉級/勝出數', '晉級/勝出名單', '淘汰數', '淘汰名單', '備註']];
+  state.roundsSummary.forEach(r => {
+    s2.push([
+      `第 ${r.round} 輪`, r.startCount, r.votesPerVoter, r.majorityThreshold, r.substeps,
+      r.promoted.length, r.promoted.join('、'), r.eliminated.length, r.eliminated.join('、'), r.note
+    ]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2), '各輪摘要');
+
+  // Sheet 3: 各步驟計票明細
+  const s3 = [['步驟編號', '階段說明', '選項', ...state.voters, '得票數', '判定']];
+  state.stepLogs.forEach(lg => {
+    lg.options.forEach((opt, oi) => {
+      const cells = lg.voters.map((_, vi) => lg.voteFlags[oi][vi] ? 'V' : lg.rankings[oi][vi]);
+      const st = lg.statusMap[opt] || '';
+      const stTxt = st === 'winner' ? '最終入選' : st === 'promoted' ? '晉級' : st === 'tie' ? '同票' : st === 'eliminated' ? '淘汰' : '';
+      s3.push([lg.id, lg.label, opt, ...cells, lg.counts[oi], stTxt]);
+    });
+    s3.push([]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s3), '各步驟計票明細');
+
+  // Sheet 4: 同票處理紀錄
+  const s4 = [['輪次', '觸發說明', '同票選項', '須選出名額', '重投票數', '動用主席票', '主席裁決對象', '最終勝出']];
+  if (state.tieHistory.length === 0) {
+    s4.push(['無同票事件']);
+  } else {
+    state.tieHistory.forEach(t => {
+      s4.push([`第 ${t.round} 輪`, t.context, t.tiedOptions.join('、'), t.slotsNeeded, t.tallySummary, t.chairUsed ? '是' : '否', t.chairSelected.join('、'), t.winners.join('、')]);
+    });
+  }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s4), '同票處理紀錄');
+
+  XLSX.writeFile(wb, `${state.config.title}_表決完整報表.xlsx`);
+  showToast('已匯出完整 Excel 報表（4 個工作表）');
+}
+
+function downloadBlob(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escapeJs(str) {
+  return String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+// Init on load
+refreshRulePreview();
+</script>
+</body>
+</html>
